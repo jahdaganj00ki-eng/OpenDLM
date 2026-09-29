@@ -28,4 +28,14 @@
     <Using Remove="System.Windows.Forms" />
   </ItemGroup>
 
+  <!--
+    The WPF SDK leaves System.IO out of the implicit usings, because a global
+    using for it would make Path ambiguous with System.Windows.Shapes.Path. The
+    application uses System.IO.Path, File and Directory far more often than the
+    Shape, so it is added back globally here.
+  -->
+  <ItemGroup>
+    <Using Include="System.IO" />
+  </ItemGroup>
+
 </Project>
