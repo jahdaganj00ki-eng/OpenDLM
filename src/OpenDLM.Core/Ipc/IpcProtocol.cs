@@ -441,36 +441,78 @@ public sealed class IpcServer : IDisposable
         }
     }
 
-    /// <summary>The subset of settings the browser extension is allowed to read.</summary>
+    /// <summary>
+    /// The subset of settings the browser extension reads and writes.
+    ///
+    /// The primary keys are the ones the extension uses natively
+    /// (<c>enabled</c>, <c>mediaSniffing</c>, <c>forceTakeoverKey</c>,
+    /// <c>keepDownloadKey</c>, <c>takeoverExtensions</c>); desktop-style aliases are
+    /// also returned so either side can consume the same payload.
+    /// </summary>
     private JsonObject BuildIntegrationSettings()
     {
         var settings = _settingsService.Current;
         var browser = settings.BrowserIntegration;
+        var integrationEnabled = browser.Enabled && settings.General.CaptureDownloads;
 
-        var takeOver = browser.TakeOverExtensions.Count > 0
+        var takeOver = NormalizeToBareList(browser.TakeOverExtensions.Count > 0
             ? browser.TakeOverExtensions
-            : _manager.FileTypes.TakeOverMasks();
-        var excluded = browser.ExcludedExtensions.Count > 0
+            : _manager.FileTypes.TakeOverMasks());
+
+        var excluded = NormalizeToBareList(browser.ExcludedExtensions.Count > 0
             ? browser.ExcludedExtensions
-            : _manager.FileTypes.ExcludedMasks();
+            : _manager.FileTypes.ExcludedMasks());
 
         return new JsonObject
         {
-            ["integrationEnabled"] = browser.Enabled && settings.General.CaptureDownloads,
-            ["takeOverBrowserDownloads"] = browser.TakeOverBrowserDownloads,
+            ["enabled"] = integrationEnabled,
+            ["mediaSniffing"] = browser.MediaOverlay,
+            ["forceTakeoverKey"] = settings.General.TakeOverModifier,
+            ["keepDownloadKey"] = settings.General.BypassModifier,
+            ["takeoverExtensions"] = ToJsonArray(takeOver),
+
             ["contextMenu"] = browser.ContextMenu,
-            ["mediaOverlay"] = browser.MediaOverlay,
+            ["takeOverBrowserDownloads"] = browser.TakeOverBrowserDownloads,
             ["minSizeBytes"] = browser.MinSizeBytes,
-            ["takeOverModifier"] = settings.General.TakeOverModifier,
-            ["bypassModifier"] = settings.General.BypassModifier,
+            ["excludedExtensions"] = ToJsonArray(excluded),
             ["showStartDialog"] = settings.General.ShowStartDialog,
             ["defaultDownloadDirectory"] = settings.Downloads.DefaultDownloadDirectory,
             ["maxConnectionsPerFile"] = settings.Connection.MaxConnectionsPerFile,
             ["appVersion"] = AppPaths.Version,
-            ["takeOverExtensions"] = new JsonArray(takeOver.Select(m => (JsonNode)JsonValue.Create(m)!).ToArray()),
-            ["excludedExtensions"] = new JsonArray(excluded.Select(m => (JsonNode)JsonValue.Create(m)!).ToArray())
+            ["protocol"] = IpcProtocol.ProtocolVersion,
+
+            // Aliases kept so an alternative client keeps working.
+            ["integrationEnabled"] = integrationEnabled,
+            ["mediaOverlay"] = browser.MediaOverlay,
+            ["takeOverModifier"] = settings.General.TakeOverModifier,
+            ["bypassModifier"] = settings.General.BypassModifier
         };
     }
+
+    /// <summary>Converts "*.ZIP", ".zip" and "zip" all to the bare lowercase "zip".</summary>
+    private static string ToBareExtension(string value)
+        => FileTypeRule.Normalize(value).TrimStart('.');
+
+    private static List<string> NormalizeToBareList(IEnumerable<string> values)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<string>();
+
+        foreach (var value in values)
+        {
+            var bare = ToBareExtension(value);
+            if (bare.Length > 0 && seen.Add(bare))
+            {
+                result.Add(bare);
+            }
+        }
+
+        result.Sort(StringComparer.Ordinal);
+        return result;
+    }
+
+    private static JsonArray ToJsonArray(IEnumerable<string> values)
+        => new(values.Select(value => (JsonNode)JsonValue.Create(value)!).ToArray());
 
     private JsonNode ApplySetting(JsonNode request)
     {
