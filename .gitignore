@@ -1,0 +1,21 @@
+## Build output
+bin/
+obj/
+publish/
+artifacts/
+
+## Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userprefs
+
+## Generated extension icons are committed on purpose (so the extension
+## loads straight from the folder). Keep them.
+!extension/icons/*.png
+
+## Local runtime state
+*.opendlm
+*.opendlmpart
+logs/

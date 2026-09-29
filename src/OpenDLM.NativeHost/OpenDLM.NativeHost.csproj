@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>OpenDLM.NativeHost</RootNamespace>
+    <AssemblyName>OpenDLMNativeHost</AssemblyName>
+    <Description>Native messaging host bridging the OpenDLM browser extension to the OpenDLM desktop app.</Description>
+  </PropertyGroup>
+
+</Project>

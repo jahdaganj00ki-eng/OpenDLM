@@ -1,0 +1,146 @@
+name: Release
+
+# Tagging v1.2.3 is the only way a release is produced. The artefacts attached to
+# the GitHub Release are built here, on a clean runner, never on a workstation.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (for example v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  release:
+    name: Build and publish the release
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install the .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Resolve the version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.tag }}' } else { '${{ github.ref_name }}' }
+          if ([string]::IsNullOrWhiteSpace($tag)) { throw 'No tag was supplied.' }
+          $version = $tag.TrimStart('v')
+          Write-Output "tag=$tag" >> $env:GITHUB_OUTPUT
+          Write-Output "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Output "Releasing $tag (version $version)"
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore OpenDLM.sln
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build OpenDLM.sln -c Release --no-restore -p:Version=${{ steps.version.outputs.version }}
+
+      # A release is never cut from a commit whose tests do not pass.
+      - name: Run the engine test suite
+        shell: pwsh
+        run: |
+          $output = & dotnet run --project tests/OpenDLM.Tests/OpenDLM.Tests.csproj -c Release --no-build 2>&1
+          $code = $LASTEXITCODE
+          $output
+          exit $code
+
+      - name: Publish the framework-dependent build
+        shell: pwsh
+        run: |
+          dotnet publish src/OpenDLM.App/OpenDLM.App.csproj -c Release -r win-x64 --self-contained false `
+            -p:Version=${{ steps.version.outputs.version }} -o artifacts/framework-dependent
+          dotnet publish src/OpenDLM.NativeHost/OpenDLM.NativeHost.csproj -c Release -r win-x64 --self-contained false `
+            -p:Version=${{ steps.version.outputs.version }} -o artifacts/framework-dependent
+
+      - name: Publish the self-contained build
+        shell: pwsh
+        run: |
+          dotnet publish src/OpenDLM.App/OpenDLM.App.csproj -c Release -r win-x64 --self-contained true `
+            -p:Version=${{ steps.version.outputs.version }} -o artifacts/self-contained
+          dotnet publish src/OpenDLM.NativeHost/OpenDLM.NativeHost.csproj -c Release -r win-x64 --self-contained true `
+            -p:Version=${{ steps.version.outputs.version }} -o artifacts/self-contained
+
+      - name: Add the extension and scripts to both flavours
+        shell: pwsh
+        run: |
+          foreach ($flavour in @('framework-dependent', 'self-contained')) {
+            Copy-Item -Recurse -Force extension "artifacts/$flavour/extension"
+            Copy-Item -Recurse -Force scripts   "artifacts/$flavour/scripts"
+            Copy-Item -Force README.md          "artifacts/$flavour/README.md"
+            Copy-Item -Force LICENSE            "artifacts/$flavour/LICENSE"
+          }
+
+      - name: Write a checksum manifest
+        shell: pwsh
+        run: |
+          foreach ($flavour in @('framework-dependent', 'self-contained')) {
+            $files = Get-ChildItem -Recurse -File "artifacts/$flavour" | Sort-Object FullName
+            $lines = foreach ($file in $files) {
+              $hash = (Get-FileHash -Algorithm SHA256 $file.FullName).Hash.ToLowerInvariant()
+              $relative = $file.FullName.Substring((Resolve-Path "artifacts/$flavour").Path.Length + 1).Replace('\', '/')
+              "$hash  $relative"
+            }
+            $lines | Set-Content -Encoding utf8 "artifacts/$flavour/SHA256SUMS.txt"
+          }
+
+      - name: Package the archives
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          Compress-Archive -Path artifacts/framework-dependent/* -DestinationPath "artifacts/OpenDLM-$version-win-x64.zip" -Force
+          Compress-Archive -Path artifacts/self-contained/*     -DestinationPath "artifacts/OpenDLM-$version-win-x64-selfcontained.zip" -Force
+          Compress-Archive -Path extension/*                    -DestinationPath "artifacts/OpenDLM-extension-$version.zip" -Force
+
+      - name: Create the GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ steps.version.outputs.tag }}'
+          $version = '${{ steps.version.outputs.version }}'
+          $notes = @"
+          OpenDLM $version - a free download manager for Windows.
+
+          This build was produced by GitHub Actions from commit ${{ github.sha }}.
+
+          Downloads
+          - ``OpenDLM-$version-win-x64.zip`` - needs the .NET 8 desktop runtime, smallest download.
+          - ``OpenDLM-$version-win-x64-selfcontained.zip`` - no runtime needed, larger.
+          - ``OpenDLM-extension-$version.zip`` - the browser extension (also included in both archives).
+
+          Verify your download against ``SHA256SUMS.txt`` inside the archive.
+
+          OpenDLM is free software under the MIT licence. It is an independent project and is
+          not affiliated with any commercial download manager.
+          "@
+          $notes | Set-Content -Encoding utf8 release-notes.md
+
+          gh release create $tag `
+            --title "OpenDLM $version" `
+            --notes-file release-notes.md `
+            --verify-tag `
+            "artifacts/OpenDLM-$version-win-x64.zip" `
+            "artifacts/OpenDLM-$version-win-x64-selfcontained.zip" `
+            "artifacts/OpenDLM-extension-$version.zip"

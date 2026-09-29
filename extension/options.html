@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenDLM options</title>
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --page: #f2f4f9;
+    --surface: #ffffff;
+    --surface-soft: #f7f9fc;
+    --border: #dde3ee;
+    --text: #131722;
+    --text-muted: #5c6579;
+    --accent: #2666ec;
+    --accent-strong: #1b4fc4;
+    --ok: #12855f;
+    --warn: #b4651a;
+    --bad: #b3261e;
+    --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #101319;
+      --surface: #171a21;
+      --surface-soft: #1e222b;
+      --border: #2c313c;
+      --text: #eef1f7;
+      --text-muted: #99a1b3;
+      --accent: #5b8cff;
+      --accent-strong: #7ba3ff;
+      --ok: #4ecfa0;
+      --warn: #e0a35c;
+      --bad: #f2857c;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    padding: 32px 20px 64px;
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    background: var(--page);
+  }
+
+  .shell {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+
+  .masthead img {
+    width: 48px;
+    height: 48px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 21px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+
+  .masthead p {
+    margin: 2px 0 0;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .card + .card {
+    margin-top: 18px;
+  }
+
+  .card > h2 {
+    margin: 0;
+    padding: 16px 22px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .field {
+    padding: 12px 22px;
+    border-top: 1px solid var(--border);
+  }
+
+  .field:first-of-type {
+    border-top: 0;
+  }
+
+  .field-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .field-row label {
+    font-weight: 550;
+  }
+
+  .descr {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: 12.5px;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  select,
+  textarea {
+    font: inherit;
+    color: var(--text);
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 10px;
+    min-width: 160px;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 176px;
+    margin-top: 8px;
+    font-family: "Cascadia Mono", "Consolas", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    resize: vertical;
+    white-space: pre;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 26px;
+    flex: 0 0 auto;
+  }
+
+  .switch input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .track {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: var(--border);
+    transition: background 140ms ease;
+    pointer-events: none;
+  }
+
+  .track::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.25);
+    transition: transform 140ms ease;
+  }
+
+  .switch input:checked + .track {
+    background: var(--accent);
+  }
+
+  .switch input:checked + .track::after {
+    transform: translateX(20px);
+  }
+
+  .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 22px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-soft);
+  }
+
+  button {
+    font: inherit;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+
+  button:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
+
+  button:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+  }
+
+  button.primary:hover:not(:disabled) {
+    background: var(--accent-strong);
+  }
+
+  button.quiet {
+    margin-left: auto;
+    background: transparent;
+  }
+
+  #status {
+    margin: 14px 2px 0;
+    min-height: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  #status[data-tone="ok"] {
+    color: var(--ok);
+  }
+
+  #status[data-tone="warn"] {
+    color: var(--warn);
+  }
+
+  #status[data-tone="bad"] {
+    color: var(--bad);
+  }
+
+  dl.protocol {
+    margin: 0;
+    padding: 14px 22px 18px;
+    display: grid;
+    grid-template-columns: minmax(120px, 200px) 1fr;
+    gap: 6px 18px;
+    font-size: 12.5px;
+  }
+
+  dl.protocol dt {
+    font-weight: 650;
+    color: var(--text-muted);
+  }
+
+  dl.protocol dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  code {
+    font-family: "Cascadia Mono", "Consolas", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 5px;
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="masthead">
+    <img src="icons/icon128.png" alt="" width="48" height="48">
+    <div>
+      <h1>OpenDLM options</h1>
+      <p>Free, MIT-licensed download manager for Windows. Extension version <span id="ext-version">-</span>.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Integration</h2>
+
+    <div class="field field-row">
+      <div>
+        <label for="enabled">Download takeover</label>
+        <p class="descr">Cancel matching downloads in the browser and send them to OpenDLM instead.</p>
+      </div>
+      <span class="switch">
+        <input type="checkbox" id="enabled">
+        <span class="track"></span>
+      </span>
+    </div>
+
+    <div class="field field-row">
+      <div>
+        <label for="media-sniffing">Media detection badge</label>
+        <p class="descr">Show a small dismissible "Download with OpenDLM" badge over videos on a page.</p>
+      </div>
+      <span class="switch">
+        <input type="checkbox" id="media-sniffing">
+        <span class="track"></span>
+      </span>
+    </div>
+
+    <div class="field field-row">
+      <div>
+        <label for="force-key">Force takeover key</label>
+        <p class="descr">Hold this key while clicking a link to send it to OpenDLM even when its type is not on the list.</p>
+      </div>
+      <select id="force-key">
+        <option value="Alt">Alt</option>
+        <option value="Control">Ctrl</option>
+        <option value="Shift">Shift</option>
+        <option value="Meta">Windows / Command</option>
+        <option value="None">None</option>
+      </select>
+    </div>
+
+    <div class="field field-row">
+      <div>
+        <label for="keep-key">Keep in browser key</label>
+        <p class="descr">Hold this key while clicking a link to let the browser download it as usual.</p>
+      </div>
+      <select id="keep-key">
+        <option value="Shift">Shift</option>
+        <option value="Alt">Alt</option>
+        <option value="Control">Ctrl</option>
+        <option value="Meta">Windows / Command</option>
+        <option value="None">None</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>File types taken over</h2>
+    <div class="field">
+      <p class="descr">
+        One extension per line, without the leading dot. Downloads whose file name ends in one of these
+        extensions are handed to OpenDLM. Everything else stays with the browser. Lines starting with
+        <code>#</code> are treated as comments.
+      </p>
+      <textarea id="extensions" spellcheck="false" wrap="off"
+        aria-label="File extensions taken over by OpenDLM"></textarea>
+    </div>
+    <div class="buttons">
+      <button type="button" class="primary" id="save">Save settings</button>
+      <button type="button" id="test">Test connection</button>
+      <button type="button" class="quiet" id="reset">Restore defaults</button>
+    </div>
+  </div>
+
+  <p id="status" role="status"></p>
+
+  <div class="card">
+    <h2>Handled actions</h2>
+    <dl class="protocol">
+      <dt>Right-click a link</dt>
+      <dd>Download with OpenDLM</dd>
+      <dt>Right-click media</dt>
+      <dd>Download this media with OpenDLM</dd>
+      <dt>Right-click the page</dt>
+      <dd>Download all links with OpenDLM</dd>
+      <dt>Toolbar button</dt>
+      <dd>Download this page's videos</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2>Native messaging host</h2>
+    <dl class="protocol">
+      <dt>Host name</dt>
+      <dd><code>com.opendlm.host</code></dd>
+      <dt>Host log</dt>
+      <dd><code>%LOCALAPPDATA%\OpenDLM\logs\nativehost.log</code></dd>
+      <dt>App log</dt>
+      <dd><code>%LOCALAPPDATA%\OpenDLM\logs\opendlm.log</code></dd>
+      <dt>Registration</dt>
+      <dd><code>scripts\register-native-host.ps1</code> with this extension's ID</dd>
+    </dl>
+  </div>
+</div>
+
+<script src="options.js"></script>
+</body>
+</html>

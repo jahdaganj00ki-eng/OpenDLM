@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenDLM</title>
+<style>
+  :root {
+    color-scheme: light dark;
+
+    --surface: #ffffff;
+    --surface-raised: #f4f6fa;
+    --border: #dfe4ee;
+    --text: #131722;
+    --text-muted: #5c6579;
+    --accent: #2666ec;
+    --accent-strong: #1b4fc4;
+    --accent-soft: rgba(38, 102, 236, 0.12);
+    --ok: #12855f;
+    --warn: #b4651a;
+    --off: #8a93a6;
+    --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: #171a21;
+      --surface-raised: #1f232c;
+      --border: #2d323d;
+      --text: #eef1f7;
+      --text-muted: #99a1b3;
+      --accent: #5b8cff;
+      --accent-strong: #7ba3ff;
+      --accent-soft: rgba(91, 140, 255, 0.16);
+      --ok: #4ecfa0;
+      --warn: #e0a35c;
+      --off: #767f92;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    width: 324px;
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text);
+    background: var(--surface);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header img {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+  }
+
+  .title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .title strong {
+    font-size: 14px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+  }
+
+  .title span {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .status {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 12px 16px;
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dot {
+    width: 9px;
+    height: 9px;
+    margin-top: 5px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--off);
+  }
+
+  .dot[data-state="ok"] {
+    background: var(--ok);
+  }
+
+  .dot[data-state="warn"] {
+    background: var(--warn);
+  }
+
+  .status-text {
+    min-width: 0;
+  }
+
+  .status-text strong {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+
+  .status-text small {
+    display: block;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    word-break: break-word;
+  }
+
+  section {
+    padding: 12px 16px;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .row label {
+    font-weight: 500;
+  }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 42px;
+    height: 24px;
+    flex: 0 0 auto;
+  }
+
+  .switch input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .track {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: var(--border);
+    transition: background 140ms ease;
+    pointer-events: none;
+  }
+
+  .track::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: var(--shadow);
+    transition: transform 140ms ease;
+  }
+
+  .switch input:checked + .track {
+    background: var(--accent);
+  }
+
+  .switch input:checked + .track::after {
+    transform: translateX(18px);
+  }
+
+  .switch input:focus-visible + .track {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .hint {
+    margin: 6px 0 0;
+    color: var(--text-muted);
+    font-size: 11.5px;
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 16px 4px;
+  }
+
+  button {
+    font: inherit;
+    font-weight: 600;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-raised);
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+
+  button:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
+
+  button:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+    text-align: center;
+  }
+
+  button.primary:hover:not(:disabled) {
+    background: var(--accent-strong);
+  }
+
+  #action-status {
+    min-height: 16px;
+    padding: 4px 16px 0;
+    color: var(--text-muted);
+    font-size: 11.5px;
+  }
+
+  footer {
+    padding: 10px 16px 14px;
+    margin-top: 8px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+
+  footer a {
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="" width="30" height="30">
+    <div class="title">
+      <strong>OpenDLM</strong>
+      <span id="ext-version">version -</span>
+    </div>
+  </header>
+
+  <div class="status">
+    <span class="dot" id="status-dot" data-state="unknown"></span>
+    <div class="status-text">
+      <strong id="status-title">Checking the app...</strong>
+      <small id="status-detail">Contacting the OpenDLM desktop app.</small>
+    </div>
+  </div>
+
+  <section>
+    <div class="row">
+      <label for="toggle-enabled">Download takeover</label>
+      <span class="switch">
+        <input type="checkbox" id="toggle-enabled">
+        <span class="track"></span>
+      </span>
+    </div>
+    <p class="hint">When on, matching downloads are cancelled in the browser and handed to OpenDLM.</p>
+  </section>
+
+  <div class="actions">
+    <button type="button" class="primary" id="btn-videos">Download this page's videos</button>
+    <button type="button" id="btn-options">OpenDLM options</button>
+  </div>
+
+  <p id="action-status" role="status"></p>
+
+  <footer>
+    OpenDLM is free and open source software, released under the MIT licence.
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

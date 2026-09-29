@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>OpenDLM.Core</RootNamespace>
+    <AssemblyName>OpenDLM.Core</AssemblyName>
+    <Description>OpenDLM download engine: segmented multi-connection downloading, queue, scheduler and settings.</Description>
+  </PropertyGroup>
+
+</Project>

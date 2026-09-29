@@ -1,0 +1,182 @@
+name: Build
+
+# Every build of OpenDLM happens here. Nothing is assembled by hand on a workstation.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  NODE_VERSION: '22'
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # Compile the .NET solution and run the dependency-free engine test suite.
+  # ----------------------------------------------------------------------------
+  build:
+    name: Build and test
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install the .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Record the toolchain
+        shell: pwsh
+        run: |
+          dotnet --info
+          Write-Output "Runner OS: $env:RUNNER_OS"
+          Write-Output "Commit:    $env:GITHUB_SHA"
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore OpenDLM.sln
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build OpenDLM.sln -c Release --no-restore
+
+      - name: Run the engine test suite
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          $output = & dotnet run --project tests/OpenDLM.Tests/OpenDLM.Tests.csproj -c Release --no-build 2>&1
+          $code = $LASTEXITCODE
+          $output | Tee-Object -FilePath artifacts/test-results.txt
+          Write-Output "Test runner exit code: $code"
+          exit $code
+
+      # The desktop UI is added to the solution once it has an application
+      # definition; this guard keeps the workflow correct in the meantime and
+      # needs no edit when the project lands.
+      - name: Publish the desktop application
+        if: hashFiles('src/OpenDLM.App/App.xaml') != ''
+        shell: pwsh
+        run: |
+          dotnet publish src/OpenDLM.App/OpenDLM.App.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -o artifacts/OpenDLM
+
+      - name: Publish the native messaging host next to the application
+        shell: pwsh
+        run: |
+          dotnet publish src/OpenDLM.NativeHost/OpenDLM.NativeHost.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -o artifacts/OpenDLM
+
+      - name: Stage the browser extension
+        shell: pwsh
+        run: |
+          Copy-Item -Recurse -Force extension artifacts/OpenDLM/extension
+          Copy-Item -Recurse -Force scripts artifacts/OpenDLM/scripts
+
+      - name: Show what was produced
+        shell: pwsh
+        run: Get-ChildItem -Recurse artifacts | Select-Object FullName, Length | Format-Table -AutoSize
+
+      - name: Upload the test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: artifacts/test-results.txt
+          if-no-files-found: warn
+
+      - name: Upload the application bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenDLM-win-x64
+          path: artifacts/OpenDLM
+          if-no-files-found: error
+
+  # ----------------------------------------------------------------------------
+  # The extension is plain JavaScript with no build step, so it only needs
+  # validating: valid MV3 manifest, parseable scripts, reproducible icons.
+  # ----------------------------------------------------------------------------
+  extension:
+    name: Validate the browser extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Validate the manifest
+        run: |
+          node -e "
+            const fs = require('fs');
+            const m = JSON.parse(fs.readFileSync('extension/manifest.json', 'utf8'));
+            if (m.manifest_version !== 3) throw new Error('manifest_version must be 3');
+            if (!m.name) throw new Error('manifest needs a name');
+            if (!m.version) throw new Error('manifest needs a version');
+            if (!m.background || !m.background.service_worker) throw new Error('manifest needs a background service worker');
+            console.log('manifest.json is a valid Manifest V3 manifest:', m.name, m.version);
+          "
+
+      - name: Check every script parses
+        run: |
+          set -e
+          status=0
+          for file in extension/*.js; do
+            # Parse as an ES module so import statements are accepted.
+            cp "$file" "/tmp/$(basename "$file" .js).mjs"
+            if node --check "/tmp/$(basename "$file" .js).mjs"; then
+              echo "OK    $file"
+            else
+              echo "FAIL  $file"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: Regenerate the icons and prove they are reproducible
+        run: |
+          node scripts/make-icons.mjs
+          if ! git diff --exit-code -- extension/icons; then
+            echo "::error::extension/icons does not match the output of scripts/make-icons.mjs"
+            exit 1
+          fi
+          echo "Icons are reproducible from scripts/make-icons.mjs"
+
+      - name: Verify the icon dimensions
+        run: |
+          node -e "
+            const fs = require('fs');
+            for (const size of [16, 32, 48, 128]) {
+              const file = 'extension/icons/icon' + size + '.png';
+              const b = fs.readFileSync(file);
+              const sig = b.subarray(0, 8).toString('hex');
+              if (sig !== '89504e470d0a1a0a') throw new Error(file + ' is not a PNG');
+              const width = b.readUInt32BE(16);
+              const height = b.readUInt32BE(20);
+              if (width !== size || height !== size) {
+                throw new Error(file + ' is ' + width + 'x' + height + ', expected ' + size + 'x' + size);
+              }
+              console.log('OK    ' + file + ' is ' + width + 'x' + height);
+            }
+          "

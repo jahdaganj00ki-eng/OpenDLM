@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- WinForms is used only for the tray icon (NotifyIcon) and native folder pickers. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>OpenDLM.App</RootNamespace>
+    <AssemblyName>OpenDLM</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Description>OpenDLM - free download manager for Windows.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenDLM.Core\OpenDLM.Core.csproj" />
+  </ItemGroup>
+
+</Project>
