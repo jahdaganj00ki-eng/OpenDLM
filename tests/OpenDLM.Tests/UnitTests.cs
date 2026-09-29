@@ -324,4 +324,140 @@ public static class UnitTests
 
         return Task.CompletedTask;
     }
+
+    public static Task HostMatcherHandlesSubdomains()
+    {
+        Check.True(HostMatcher.Matches("example.com", "example.com"), "exact host");
+        Check.True(HostMatcher.Matches("example.com", "cdn.example.com"), "sub-domain");
+        Check.True(HostMatcher.Matches(".example.com", "cdn.example.com"), "a leading dot is ignored");
+        Check.True(HostMatcher.Matches("EXAMPLE.COM", "cdn.example.com"), "matching is case-insensitive");
+        Check.True(HostMatcher.Matches("example.com", "EXAMPLE.COM"), "the host is lowercased too");
+        Check.False(HostMatcher.Matches("example.com", "notexample.com"), "a suffix is not a sub-domain");
+        Check.False(HostMatcher.Matches("example.com", "example.com.evil.net"), "a prefixed domain does not match");
+        Check.False(HostMatcher.Matches("", "example.com"), "an empty rule matches nothing");
+        Check.False(HostMatcher.Matches("example.com", null), "a missing host matches nothing");
+
+        var list = new List<string> { "a.example.com", ".b.example.com" };
+        Check.True(HostMatcher.MatchesAny(list, "x.b.example.com"), "the list matches a sub-domain");
+        Check.False(HostMatcher.MatchesAny(list, "c.example.com"), "the list does not over-match");
+        Check.False(HostMatcher.MatchesAny(null, "a.example.com"), "a null list matches nothing");
+        Check.False(HostMatcher.MatchesAny(list, null), "a null host matches nothing");
+
+        return Task.CompletedTask;
+    }
+
+    public static Task ProxyHonoursProtocolSwitchesAndExceptions()
+    {
+        var settings = new ConnectionSettings
+        {
+            ProxyAddress = "proxy.example.com",
+            ProxyPort = 3128,
+            ProxyUsername = "alice",
+            UseHttpProxy = true,
+            UseHttpsProxy = false,
+            UseFtpProxy = true,
+            ProxyBypassLocal = false,
+            ProxyExceptions = new List<string> { "direct.example.com" }
+        };
+
+        var proxy = new OpenDLMProxy(settings, "secret");
+        Check.True(proxy.IsUsable, "a proxy with an address is usable");
+        Check.NotNull(proxy.Credentials, "proxy credentials are attached");
+
+        Check.NotNull(proxy.GetProxy(new Uri("http://files.example.com/a.zip")),
+            "http goes through the proxy");
+        Check.Equal(null, proxy.GetProxy(new Uri("https://files.example.com/a.zip")),
+            "https is switched off for this proxy");
+        Check.NotNull(proxy.GetProxy(new Uri("ftp://files.example.com/a.zip")),
+            "ftp still goes through the proxy");
+        Check.Equal(null, proxy.GetProxy(new Uri("http://direct.example.com/a.zip")),
+            "an exception host connects directly");
+        Check.Equal(null, proxy.GetProxy(new Uri("http://cdn.direct.example.com/a.zip")),
+            "a sub-domain of an exception connects directly");
+        Check.False(proxy.IsBypassed(new Uri("http://files.example.com/a.zip")),
+            "IsBypassed agrees that the proxy is used");
+
+        // Plain HTTP proxy: the scheme has to come out as http, not socks.
+        Check.Equal("http", proxy.GetProxy(new Uri("http://files.example.com/a.zip"))!.Scheme,
+            "the default dialect is HTTP CONNECT");
+
+        var socks = new OpenDLMProxy(
+            new ConnectionSettings
+            {
+                ProxyAddress = "socks.example.com",
+                ProxyPort = 1080,
+                SocksType = SocksType.Socks5,
+                ProxyBypassLocal = false
+            },
+            null);
+
+        Check.Equal("socks5", socks.GetProxy(new Uri("http://files.example.com/a.zip"))!.Scheme,
+            "the SOCKS5 dialect is used");
+        Check.Equal(1080, socks.GetProxy(new Uri("http://files.example.com/a.zip"))!.Port,
+            "the SOCKS5 port is used");
+
+        var socks4 = new OpenDLMProxy(
+            new ConnectionSettings { ProxyAddress = "socks.example.com:9050", SocksType = SocksType.Socks4 },
+            null);
+        Check.Equal("socks4", socks4.GetProxy(new Uri("http://files.example.com/a.zip"))!.Scheme,
+            "the SOCKS4 dialect is used");
+        Check.Equal(9050, socks4.GetProxy(new Uri("http://files.example.com/a.zip"))!.Port,
+            "a port typed into the address field wins");
+
+        // Local bypass.
+        var localBypass = new OpenDLMProxy(
+            new ConnectionSettings { ProxyAddress = "proxy.example.com", ProxyBypassLocal = true },
+            null);
+        Check.Equal(null, localBypass.GetProxy(new Uri("http://localhost/a.zip")), "localhost bypasses the proxy");
+        Check.Equal(null, localBypass.GetProxy(new Uri("http://127.0.0.1/a.zip")), "loopback bypasses the proxy");
+        Check.Equal(null, localBypass.GetProxy(new Uri("http://192.168.1.10/a.zip")), "a private address bypasses the proxy");
+        Check.NotNull(localBypass.GetProxy(new Uri("http://8.8.8.8/a.zip")), "a public address uses the proxy");
+
+        // No address at all: the proxy is unusable and the client should go direct.
+        var empty = new OpenDLMProxy(new ConnectionSettings(), null);
+        Check.False(empty.IsUsable, "a proxy without an address is not usable");
+
+        return Task.CompletedTask;
+    }
+
+    public static Task AdditionalSettingsRoundTrip()
+    {
+        var settings = AppSettings.CreateDefault();
+
+        settings.Scheduler.DailyLimitEnabled = true;
+        settings.Scheduler.DailyLimitHours = 3.5;
+        settings.Scheduler.DailyLimitMegabytes = 2500;
+        settings.Scheduler.ShowLimitExceededWarning = false;
+        settings.Connection.SocksType = SocksType.Socks4;
+        settings.Connection.UseHttpsProxy = false;
+        settings.Connection.ProxyExceptions = new List<string> { "one.example.com", "two.example.com" };
+        settings.Connection.FtpPassive = false;
+        settings.Interface.ToolbarStyle = ToolbarStyle.LargeIcons;
+        settings.General.EnableForceKey = false;
+        settings.General.SkipHtml = false;
+        settings.General.RememberLastSave = false;
+        settings.Downloads.RememberLastSave = false;
+        settings.Sounds.NotifyOnQueueStart = false;
+        settings.Sounds.NotifyOnQueueFinish = false;
+
+        var json = JsonSerializer.Serialize(settings, SettingsService.JsonOptions);
+        var restored = JsonSerializer.Deserialize<AppSettings>(json, SettingsService.JsonOptions);
+
+        Check.NotNull(restored, "deserialized settings");
+        Check.True(restored!.Scheduler.DailyLimitEnabled, "daily limit flag");
+        Check.Equal(3.5, restored.Scheduler.DailyLimitHours, "daily limit hours");
+        Check.Equal(2500L, restored.Scheduler.DailyLimitMegabytes, "daily limit megabytes");
+        Check.False(restored.Scheduler.ShowLimitExceededWarning, "limit warning flag");
+        Check.Equal(SocksType.Socks4, restored.Connection.SocksType, "SOCKS dialect");
+        Check.False(restored.Connection.UseHttpsProxy, "per-protocol switch");
+        Check.Equal(2, restored.Connection.ProxyExceptions.Count, "proxy exception list");
+        Check.Equal("two.example.com", restored.Connection.ProxyExceptions[1], "proxy exception value");
+        Check.False(restored.Connection.FtpPassive, "FTP passive mode");
+        Check.Equal(ToolbarStyle.LargeIcons, restored.Interface.ToolbarStyle, "toolbar style");
+        Check.False(restored.General.EnableForceKey, "force key flag");
+        Check.False(restored.General.RememberLastSave, "remember last save flag");
+        Check.False(restored.Sounds.NotifyOnQueueStart, "queue start notification flag");
+
+        return Task.CompletedTask;
+    }
 }

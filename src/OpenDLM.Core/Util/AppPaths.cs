@@ -50,6 +50,9 @@ public static class AppPaths
 
     public static string SitesLoginsFile => Path.Combine(RoamingRoot, "sites-logins.json");
 
+    /// <summary>Hosts that must use a single connection, plus any other per-site rule.</summary>
+    public static string SitesExceptionsFile => Path.Combine(RoamingRoot, "sites-exceptions.json");
+
     public static string FileTypesFile => Path.Combine(RoamingRoot, "file-types.json");
 
     public static string LogFile => Path.Combine(LogDirectory, "opendlm.log");

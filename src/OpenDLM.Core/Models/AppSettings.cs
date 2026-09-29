@@ -167,6 +167,30 @@ public sealed class GeneralSettings
     [JsonPropertyName("warnOnDuplicateDownload")]
     public bool WarnOnDuplicateDownload { get; set; } = true;
 
+    /// <summary>Honour the "force takeover" key while clicking a link.</summary>
+    [JsonPropertyName("enableForceKey")]
+    public bool EnableForceKey { get; set; } = true;
+
+    /// <summary>Honour the "let the browser keep it" key while clicking a link.</summary>
+    [JsonPropertyName("enablePreventKey")]
+    public bool EnablePreventKey { get; set; } = true;
+
+    /// <summary>Also react to middle-click and modifier-click takeover gestures.</summary>
+    [JsonPropertyName("checkMouse")]
+    public bool CheckMouse { get; set; }
+
+    /// <summary>Never take over plain web page navigations.</summary>
+    [JsonPropertyName("skipHtml")]
+    public bool SkipHtml { get; set; } = true;
+
+    /// <summary>Leave the last used folder selected the next time a download is added.</summary>
+    [JsonPropertyName("rememberLastSave")]
+    public bool RememberLastSave { get; set; } = true;
+
+    /// <summary>The folder remembered by <see cref="RememberLastSave"/>.</summary>
+    [JsonPropertyName("lastUsedDirectory")]
+    public string? LastUsedDirectory { get; set; }
+
     internal void Normalize(AppSettings owner)
     {
         var allowed = new[] { "Alt", "Ctrl", "Shift", "None" };
@@ -247,6 +271,18 @@ public sealed class DownloadsSettings
     /// <summary>Remove finished entries from the list after this many days. 0 = never.</summary>
     [JsonPropertyName("keepCompletedDays")]
     public int KeepCompletedDays { get; set; }
+
+    /// <summary>Reuse the folder of the previous download as the default for the next one.</summary>
+    [JsonPropertyName("rememberLastSave")]
+    public bool RememberLastSave { get; set; } = true;
+
+    /// <summary>The folder remembered by <see cref="RememberLastSave"/>.</summary>
+    [JsonPropertyName("lastUsedDirectory")]
+    public string? LastUsedDirectory { get; set; }
+
+    /// <summary>Default action for FTP transfers that support it.</summary>
+    [JsonPropertyName("ftpPassive")]
+    public bool FtpPassive { get; set; } = true;
 
     /// <summary>Do not take over downloads smaller than this. 0 = no minimum.</summary>
     [JsonPropertyName("minTakeOverSizeBytes")]
@@ -344,6 +380,35 @@ public sealed class ConnectionSettings
     [JsonPropertyName("proxyBypassLocal")]
     public bool ProxyBypassLocal { get; set; } = true;
 
+    /// <summary>Per-protocol switches: each scheme can opt out of the proxy separately.</summary>
+    [JsonPropertyName("useHttpProxy")]
+    public bool UseHttpProxy { get; set; } = true;
+
+    [JsonPropertyName("useHttpsProxy")]
+    public bool UseHttpsProxy { get; set; } = true;
+
+    [JsonPropertyName("useFtpProxy")]
+    public bool UseFtpProxy { get; set; } = true;
+
+    /// <summary>Dialect for the manual proxy. A SOCKS setting wins over plain HTTP CONNECT.</summary>
+    [JsonPropertyName("socksType")]
+    public SocksType SocksType { get; set; } = SocksType.None;
+
+    /// <summary>
+    /// Ask a SOCKS5 proxy to resolve the name. .NET always sends the host name for
+    /// socks5, so this is recorded for the options dialog and for the documentation.
+    /// </summary>
+    [JsonPropertyName("socks5ProxyDns")]
+    public bool Socks5ProxyDns { get; set; } = true;
+
+    /// <summary>Hosts that must connect directly, one entry per host or domain.</summary>
+    [JsonPropertyName("proxyExceptions")]
+    public List<string> ProxyExceptions { get; set; } = new();
+
+    /// <summary>Use passive mode for FTP transfers.</summary>
+    [JsonPropertyName("ftpPassive")]
+    public bool FtpPassive { get; set; } = true;
+
     /// <summary>Accept invalid/self-signed TLS certificates. Off by default; surfaced with a warning in the UI.</summary>
     [JsonPropertyName("ignoreCertificateErrors")]
     public bool IgnoreCertificateErrors { get; set; }
@@ -385,6 +450,22 @@ public sealed class SchedulerSettings
     /// <summary>Seconds to wait before acting on "when finished", so the user can cancel.</summary>
     [JsonPropertyName("finishedActionDelaySeconds")]
     public int FinishedActionDelaySeconds { get; set; } = 60;
+
+    /// <summary>Master switch for the daily time and volume ceilings.</summary>
+    [JsonPropertyName("dailyLimitEnabled")]
+    public bool DailyLimitEnabled { get; set; }
+
+    /// <summary>Stop downloading once this many hours have been spent today. 0 disables the time ceiling.</summary>
+    [JsonPropertyName("dailyLimitHours")]
+    public double DailyLimitHours { get; set; }
+
+    /// <summary>Stop downloading once this much data has been fetched today. 0 disables the volume ceiling.</summary>
+    [JsonPropertyName("dailyLimitMegabytes")]
+    public long DailyLimitMegabytes { get; set; }
+
+    /// <summary>Warn once when a daily ceiling is reached instead of stopping silently.</summary>
+    [JsonPropertyName("showLimitExceededWarning")]
+    public bool ShowLimitExceededWarning { get; set; } = true;
 }
 
 public sealed class SoundSettings
@@ -407,6 +488,14 @@ public sealed class SoundSettings
 
     [JsonPropertyName("notifyOnError")]
     public bool NotifyOnError { get; set; } = true;
+
+    /// <summary>Notify when a scheduled queue window opens.</summary>
+    [JsonPropertyName("notifyOnQueueStart")]
+    public bool NotifyOnQueueStart { get; set; } = true;
+
+    /// <summary>Notify when a scheduled queue window closes or the queue drains.</summary>
+    [JsonPropertyName("notifyOnQueueFinish")]
+    public bool NotifyOnQueueFinish { get; set; } = true;
 }
 
 /// <summary>Per-browser integration switches. The extension and native host read these over IPC.</summary>
@@ -484,6 +573,10 @@ public sealed class InterfaceSettings
     /// <summary>How often the list is refreshed while downloads run.</summary>
     [JsonPropertyName("refreshIntervalMs")]
     public int RefreshIntervalMs { get; set; } = 500;
+
+    /// <summary>How much detail the toolbar shows.</summary>
+    [JsonPropertyName("toolbarStyle")]
+    public ToolbarStyle ToolbarStyle { get; set; } = ToolbarStyle.IconsAndText;
 
     /// <summary>Which grid columns are visible, in display order.</summary>
     [JsonPropertyName("visibleColumns")]

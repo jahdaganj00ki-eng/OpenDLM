@@ -126,6 +126,14 @@ public sealed class FileTypeRule
     [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Optional per-type destination folder. When set it overrides the category
+    /// folder, which is how a user can route every disk image to one particular
+    /// drive without moving the whole category.
+    /// </summary>
+    [JsonPropertyName("folder")]
+    public string? Folder { get; set; }
+
     /// <summary>Normalizes to a leading-dot lowercase form such as ".zip".</summary>
     public static string Normalize(string extension)
     {
@@ -196,4 +204,32 @@ public sealed class AddDownloadRequest
     public bool StartNow { get; set; } = true;
     /// <summary>Queue the item and let the scheduler pick it up.</summary>
     public bool AddToQueue { get; set; }
+}
+
+/// <summary>
+/// A host that must always be fetched over a single connection.
+///
+/// Plenty of servers either ignore byte ranges or actively corrupt multi-part
+/// requests. Remembering that per host is much better than lowering the connection
+/// count for everything, and it mirrors the "do not use multi-part download for
+/// this site" list that commercial download managers keep.
+/// </summary>
+public sealed class SiteException
+{
+    /// <summary>Host name, optionally with a leading dot to include sub-domains.</summary>
+    [JsonPropertyName("host")]
+    public string Host { get; set; } = string.Empty;
+
+    [JsonPropertyName("useSingleConnection")]
+    public bool UseSingleConnection { get; set; } = true;
+
+    [JsonPropertyName("note")]
+    public string? Note { get; set; }
+
+    public SiteException Clone() => new()
+    {
+        Host = Host,
+        UseSingleConnection = UseSingleConnection,
+        Note = Note
+    };
 }

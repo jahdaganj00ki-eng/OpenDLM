@@ -216,6 +216,13 @@ public sealed class DownloadItem : INotifyPropertyChanged
     [JsonPropertyName("description")]
     public string? Description { get; set; }
 
+    /// <summary>
+    /// Display name of the queue the item belongs to. Denormalised on purpose so the
+    /// list can show it without reaching back into the queue collection.
+    /// </summary>
+    [JsonPropertyName("queueName")]
+    public string QueueName { get; set; } = "Main queue";
+
     [JsonPropertyName("referer")]
     public string? Referer { get; set; }
 

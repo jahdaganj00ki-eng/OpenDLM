@@ -27,6 +27,9 @@ var cases = new List<(string Name, Func<Task> Body)>
     ("Settings JSON round trips faithfully", UnitTests.SettingsJsonRoundTripsFaithfully),
     ("Governor throttles to the configured rate", UnitTests.GovernorThrottlesToConfiguredRate),
     ("Queue windows handle overnight ranges", UnitTests.QueueWindowsHandleOvernightRanges),
+    ("Host matcher handles sub-domains", UnitTests.HostMatcherHandlesSubdomains),
+    ("Proxy honours protocol switches and exceptions", UnitTests.ProxyHonoursProtocolSwitchesAndExceptions),
+    ("Added settings round trip", UnitTests.AdditionalSettingsRoundTrip),
 
     // End to end against a real local HTTP server.
     ("Multi-connection download is byte perfect", () => EngineTests.MultiConnectionDownloadIsBytePerfect(sandbox)),
@@ -41,7 +44,11 @@ var cases = new List<(string Name, Func<Task> Body)>
     ("Category folders are honoured", () => EngineTests.CategoryFoldersAreHonoured(sandbox)),
     ("Checksums are computed when enabled", () => EngineTests.ChecksumsAreComputedWhenEnabled(sandbox)),
     ("Speed limit slows the transfer", () => EngineTests.SpeedLimitSlowsTheTransfer(sandbox)),
-    ("Queued downloads wait for start", () => EngineTests.QueuedDownloadsWaitForStart(sandbox))
+    ("Queued downloads wait for start", () => EngineTests.QueuedDownloadsWaitForStart(sandbox)),
+    ("Site exception forces a single connection", () => EngineTests.SiteExceptionForcesASingleConnection(sandbox)),
+    ("Per-type folder overrides the category folder", () => EngineTests.PerTypeFolderOverridesTheCategoryFolder(sandbox)),
+    ("Item carries the queue name", () => EngineTests.ItemCarriesTheQueueName(sandbox)),
+    ("Site exceptions persist", () => EngineTests.SiteExceptionsPersist(sandbox))
 };
 
 var failures = new List<string>();

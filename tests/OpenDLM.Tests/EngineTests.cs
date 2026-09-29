@@ -35,7 +35,15 @@ public static class EngineTests
     /// <summary>Each test starts from an empty engine state so runs are independent.</summary>
     private static void ResetState()
     {
-        foreach (var path in new[] { AppPaths.DownloadsFile, AppPaths.QueuesFile, AppPaths.SitesLoginsFile })
+        foreach (var path in new[]
+                 {
+                     AppPaths.DownloadsFile,
+                     AppPaths.QueuesFile,
+                     AppPaths.SitesLoginsFile,
+                     // Site exceptions change engine behaviour for every later test,
+                     // so they must not leak between cases.
+                     AppPaths.SitesExceptionsFile
+                 })
         {
             try
             {
@@ -433,5 +441,125 @@ public static class EngineTests
         await manager.StartAsync(item);
         Check.Equal(DownloadStatus.Complete, item.Status, "the queued item completed once started (" + item.ErrorMessage + ")");
         Check.BytesEqual(server.Payload, await File.ReadAllBytesAsync(item.FullPath), "content after starting the queue");
+    }
+
+    /// <summary>
+    /// A host on the exception list must be fetched over exactly one connection even
+    /// when more are configured, because that is the whole point of the list.
+    /// </summary>
+    public static async Task SiteExceptionForcesASingleConnection(string root)
+    {
+        using var server = new TestHttpServer(4 * 1024 * 1024);
+        var settings = CreateSettings(s => s.Connection.MaxConnectionsPerFile = 8);
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        manager.AddSiteException("127.0.0.1", useSingleConnection: true, note: "test case");
+
+        Check.True(manager.UsesSingleConnection(server.Url()), "the host is recognised as an exception");
+        Check.False(manager.UsesSingleConnection("http://other.example.com/file.bin"),
+            "an unrelated host is not an exception");
+
+        var folder = NewFolder(root, "site-exception");
+        var item = await manager.AddAndStartAsync(new AddDownloadRequest
+        {
+            Url = server.Url(),
+            Directory = folder,
+            FileName = "single.bin"
+        });
+
+        Check.Equal(DownloadStatus.Complete, item.Status, "download status (" + item.ErrorMessage + ")");
+        Check.Equal(1, item.Connections, "the exception forced a single connection");
+        Check.BytesEqual(server.Payload, await File.ReadAllBytesAsync(item.FullPath), "content is intact");
+    }
+
+    /// <summary>A folder configured for one file type must beat the category folder.</summary>
+    public static async Task PerTypeFolderOverridesTheCategoryFolder(string root)
+    {
+        using var server = new TestHttpServer(256 * 1024);
+
+        var categoryFolder = NewFolder(root, "category");
+        var typeFolder = NewFolder(root, "by-type");
+
+        var settings = CreateSettings(s =>
+        {
+            s.Connection.MaxConnectionsPerFile = 1;
+            s.Downloads.UseCategoryFolders = true;
+            s.Downloads.CategoryFolders["Video"] = categoryFolder;
+        });
+
+        var fileTypes = new FileTypeRegistry();
+        // .iso belongs to the Compressed category, and this rule sends it elsewhere.
+        var rules = fileTypes.Rules.Select(rule => new FileTypeRule
+        {
+            Extension = rule.Extension,
+            Action = rule.Action,
+            Category = rule.Category,
+            Description = rule.Description,
+            Folder = rule.Extension == ".iso" ? typeFolder : rule.Folder
+        }).ToList();
+
+        fileTypes.ReplaceAll(rules);
+
+        using var manager = new DownloadManager(settings, fileTypes, new DownloadStore());
+
+        var item = await manager.AddAndStartAsync(new AddDownloadRequest
+        {
+            Url = server.Url("/disk.iso"),
+            FileName = "disk.iso"
+        });
+
+        Check.Equal(DownloadStatus.Complete, item.Status, "download status (" + item.ErrorMessage + ")");
+        Check.Equal(typeFolder, item.Directory, "the per-type folder won over the category folder");
+        Check.True(File.Exists(Path.Combine(typeFolder, "disk.iso")), "the file landed in the per-type folder");
+    }
+
+    /// <summary>The download list must carry the queue name so the grid can show it.</summary>
+    public static async Task ItemCarriesTheQueueName(string root)
+    {
+        using var server = new TestHttpServer(64 * 1024);
+        var settings = CreateSettings(s => s.Connection.MaxConnectionsPerFile = 1);
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        var folder = NewFolder(root, "queue-name");
+        var item = await manager.AddAndStartAsync(new AddDownloadRequest
+        {
+            Url = server.Url(),
+            Directory = folder,
+            FileName = "named.bin",
+            QueueId = 1
+        });
+
+        Check.Equal("Night queue", item.QueueName, "the queue id was resolved to its name");
+        Check.Equal(DownloadStatus.Complete, item.Status, "download status (" + item.ErrorMessage + ")");
+    }
+
+    /// <summary>Site exceptions must survive a save and reload.</summary>
+    public static async Task SiteExceptionsPersist(string root)
+    {
+        using var server = new TestHttpServer(64 * 1024);
+        var settings = CreateSettings(s => s.Connection.MaxConnectionsPerFile = 1);
+
+        using (var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore()))
+        {
+            manager.SaveSiteExceptions(new[]
+            {
+                new SiteException { Host = "slow.example.com", Note = "ignores ranges" },
+                new SiteException { Host = "cdn.example.org" }
+            });
+
+            Check.Equal(2, manager.SiteExceptions.Count, "two exceptions were stored");
+        }
+
+        using (var reloaded = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore()))
+        {
+            Check.Equal(2, reloaded.SiteExceptions.Count, "the exceptions were reloaded");
+            Check.True(reloaded.UsesSingleConnection("http://slow.example.com/x.bin"),
+                "the reloaded rule still applies");
+
+            reloaded.RemoveSiteException("slow.example.com");
+            Check.Equal(1, reloaded.SiteExceptions.Count, "an exception can be removed");
+        }
+
+        await Task.CompletedTask;
     }
 }

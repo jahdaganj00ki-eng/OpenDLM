@@ -76,3 +76,24 @@ public enum DownloadErrorKind
     InvalidUrl,
     SizeMismatch
 }
+
+/// <summary>Which SOCKS dialect a manual proxy speaks.</summary>
+public enum SocksType
+{
+    None = 0,
+    Socks4 = 1,
+    Socks5 = 2
+}
+
+/// <summary>How much the toolbar shows.</summary>
+public enum ToolbarStyle
+{
+    /// <summary>Small icons with their labels.</summary>
+    IconsAndText = 0,
+
+    /// <summary>Icons only, for a compact window.</summary>
+    IconsOnly = 1,
+
+    /// <summary>Large icons with the labels underneath.</summary>
+    LargeIcons = 2
+}

@@ -184,6 +184,26 @@ public sealed class FileTypeRegistry
         }
     }
 
+    /// <summary>
+    /// Returns the per-type destination folder override, or null when the file type
+    /// has none and the category folder should be used instead.
+    /// </summary>
+    public string? FolderFor(string? fileNameOrUrl)
+    {
+        var extension = ExtensionOf(fileNameOrUrl);
+        if (extension.Length == 0)
+        {
+            return null;
+        }
+
+        lock (_gate)
+        {
+            return _rules.TryGetValue(extension, out var rule) && !string.IsNullOrWhiteSpace(rule.Folder)
+                ? rule.Folder
+                : null;
+        }
+    }
+
     public static string ExtensionOf(string? fileNameOrUrl)
     {
         if (string.IsNullOrWhiteSpace(fileNameOrUrl))

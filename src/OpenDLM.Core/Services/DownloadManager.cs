@@ -39,6 +39,7 @@ public sealed class DownloadManager : IDisposable
     private readonly List<DownloadItem> _items = new();
     private readonly List<DownloadQueue> _queues;
     private readonly List<SiteLogin> _siteLogins;
+    private readonly List<SiteException> _siteExceptions;
 
     private readonly Dictionary<Guid, RunHandle> _runs = new();
     private readonly SemaphoreSlim _pumpGate = new(1, 1);
@@ -58,6 +59,7 @@ public sealed class DownloadManager : IDisposable
         _http = new HttpClientProvider(() => _settingsService.Current);
         _queues = _store.LoadQueues();
         _siteLogins = _store.LoadSiteLogins();
+        _siteExceptions = _store.LoadSiteExceptions();
 
         foreach (var item in _store.LoadDownloads())
         {
@@ -198,6 +200,7 @@ public sealed class DownloadManager : IDisposable
             Password = request.Password,
             MimeType = request.MimeType,
             QueueId = request.QueueId,
+            QueueName = QueueNameFor(request.QueueId),
             TotalBytes = request.TotalBytes > 0 ? request.TotalBytes : -1,
             Connections = request.Connections ?? settings.Connection.MaxConnectionsPerFile
         };
@@ -213,17 +216,29 @@ public sealed class DownloadManager : IDisposable
 
         item.Directory = !string.IsNullOrWhiteSpace(request.Directory)
             ? request.Directory!
-            : ResolveDirectory(category, settings);
+            : ResolveDirectory(category, settings, item.FileName.Length > 0 ? item.FileName : url);
 
         item.Status = request.AddToQueue ? DownloadStatus.Queued : DownloadStatus.Queued;
         return item;
     }
 
-    /// <summary>Returns the folder a category is filed into, honouring the "use category folders" setting.</summary>
-    public string ResolveDirectory(DownloadCategory category, AppSettings? settings = null)
+    /// <summary>
+    /// Returns the folder a download is filed into. A rule for the exact file type
+    /// wins over the category folder, and the category folder wins over the default.
+    /// </summary>
+    public string ResolveDirectory(DownloadCategory category, AppSettings? settings = null, string? fileNameOrUrl = null)
     {
         settings ??= _settingsService.Current;
         var root = settings.Downloads.DefaultDownloadDirectory;
+
+        if (!string.IsNullOrWhiteSpace(fileNameOrUrl))
+        {
+            var perType = FileTypes.FolderFor(fileNameOrUrl);
+            if (!string.IsNullOrWhiteSpace(perType))
+            {
+                return perType;
+            }
+        }
 
         if (!settings.Downloads.UseCategoryFolders)
         {
@@ -244,6 +259,100 @@ public sealed class DownloadManager : IDisposable
                !string.IsNullOrWhiteSpace(folder)
             ? folder
             : root;
+    }
+
+    // ---------------------------------------------------------- site exceptions
+
+    public IReadOnlyList<SiteException> SiteExceptions
+    {
+        get
+        {
+            lock (_itemsGate)
+            {
+                return _siteExceptions.Select(entry => entry.Clone()).ToList();
+            }
+        }
+    }
+
+    /// <summary>
+    /// True when this host is marked as one that must be fetched over a single
+    /// connection, because it ignores byte ranges or corrupts multi-part requests.
+    /// </summary>
+    public bool UsesSingleConnection(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) ||
+            !Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        lock (_itemsGate)
+        {
+            return _siteExceptions.Any(entry =>
+                entry.UseSingleConnection && HostMatcher.Matches(entry.Host, uri.Host));
+        }
+    }
+
+    public void SaveSiteExceptions(IEnumerable<SiteException> exceptions)
+    {
+        lock (_itemsGate)
+        {
+            _siteExceptions.Clear();
+            _siteExceptions.AddRange(exceptions.Select(entry => entry.Clone()));
+        }
+
+        _store.SaveSiteExceptions(_siteExceptions);
+    }
+
+    public void AddSiteException(string host, bool useSingleConnection = true, string? note = null)
+    {
+        var value = (host ?? string.Empty).Trim();
+        if (value.Length == 0)
+        {
+            return;
+        }
+
+        lock (_itemsGate)
+        {
+            var existing = _siteExceptions.FirstOrDefault(entry =>
+                string.Equals(entry.Host, value, StringComparison.OrdinalIgnoreCase));
+
+            if (existing is null)
+            {
+                _siteExceptions.Add(new SiteException
+                {
+                    Host = value,
+                    UseSingleConnection = useSingleConnection,
+                    Note = note
+                });
+            }
+            else
+            {
+                existing.UseSingleConnection = useSingleConnection;
+                existing.Note = note;
+            }
+        }
+
+        _store.SaveSiteExceptions(_siteExceptions);
+    }
+
+    public void RemoveSiteException(string host)
+    {
+        lock (_itemsGate)
+        {
+            _siteExceptions.RemoveAll(entry =>
+                string.Equals(entry.Host, host, StringComparison.OrdinalIgnoreCase));
+        }
+
+        _store.SaveSiteExceptions(_siteExceptions);
+    }
+
+    private string QueueNameFor(int queueId)
+    {
+        lock (_itemsGate)
+        {
+            return _queues.FirstOrDefault(queue => queue.Id == queueId)?.Name ?? "Main queue";
+        }
     }
 
     /// <summary>Adds an item to the list without starting it.</summary>
@@ -699,9 +808,20 @@ public sealed class DownloadManager : IDisposable
             item.Connections > 0 ? item.Connections : settings.Connection.MaxConnectionsPerFile,
             1, 32);
 
-        if (!probe.SupportsRanges)
+        var forceSingleConnection = !probe.SupportsRanges || UsesSingleConnection(item.Url);
+
+        if (forceSingleConnection)
         {
             requestedConnections = 1;
+
+            // A multi-segment resume state cannot be continued over one connection,
+            // so the partial file is discarded and the download starts again.
+            if (item.Segments.Count > 1)
+            {
+                Log.Info($"'{item.FileName}': restarting over a single connection.");
+                ResumeStateStore.DeletePartialFile(item);
+                item.Segments.Clear();
+            }
         }
 
         if (item.Segments.Count == 0)

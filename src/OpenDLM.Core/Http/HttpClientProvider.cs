@@ -52,6 +52,11 @@ public sealed class HttpClientProvider : IDisposable
         connection.ProxyUsername,
         connection.ProxyPasswordProtected ?? string.Empty,
         connection.ProxyBypassLocal,
+        connection.SocksType,
+        connection.UseHttpProxy,
+        connection.UseHttpsProxy,
+        connection.UseFtpProxy,
+        string.Join(',', connection.ProxyExceptions ?? Enumerable.Empty<string>()),
         connection.IgnoreCertificateErrors,
         connection.TimeoutSeconds,
         connection.MaxRedirects,
@@ -84,39 +89,24 @@ public sealed class HttpClientProvider : IDisposable
 
             case ProxyMode.Manual:
             {
-                var address = connection.ProxyAddress?.Trim() ?? string.Empty;
-                if (address.Length == 0)
-                {
-                    handler.UseProxy = true;
-                    break;
-                }
+                // A custom IWebProxy decides per request, which is the only way to
+                // honour the per-protocol switches and the host exception list: the
+                // handler itself accepts one proxy for everything.
+                var proxy = new OpenDLMProxy(
+                    connection,
+                    CredentialProtectorBridge.Unprotect(connection.ProxyPasswordProtected));
 
-                if (!address.Contains("://", StringComparison.Ordinal))
+                if (proxy.IsUsable)
                 {
-                    address = "http://" + address;
-                }
-
-                try
-                {
-                    var proxy = new WebProxy(new Uri($"{address}:{connection.ProxyPort}"));
-                    if (!string.IsNullOrEmpty(connection.ProxyUsername))
-                    {
-                        proxy.Credentials = new NetworkCredential(
-                            connection.ProxyUsername,
-                            CredentialProtectorBridge.Unprotect(connection.ProxyPasswordProtected));
-                    }
-                    if (connection.ProxyBypassLocal)
-                    {
-                        proxy.BypassProxyOnLocal = true;
-                    }
                     handler.Proxy = proxy;
                     handler.UseProxy = true;
                 }
-                catch (Exception ex)
+                else
                 {
-                    Log.Warn("Invalid proxy configuration, falling back to the system proxy: " + ex.Message);
-                    handler.UseProxy = true;
+                    Log.Warn("The manual proxy has no address; connecting directly.");
+                    handler.UseProxy = false;
                 }
+
                 break;
             }
 

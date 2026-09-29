@@ -39,6 +39,14 @@ public sealed class SchedulerService : IDisposable
     private DateTime? _finishedSince;
     private bool _disposed;
 
+    // Daily ceiling bookkeeping.
+    private DateTime _dailyDate = DateTime.Today;
+    private double _dailySeconds;
+    private long _dailyBytes;
+    private long _lastBytesSnapshot = -1;
+    private DateTime _lastTickUtc = DateTime.UtcNow;
+    private bool _limitReported;
+
     public SchedulerService(DownloadManager manager, SettingsService settingsService)
     {
         _manager = manager;
@@ -48,6 +56,30 @@ public sealed class SchedulerService : IDisposable
 
     /// <summary>Raised when a scheduled action should be carried out.</summary>
     public event EventHandler<ScheduledEventArgs>? ActionRequired;
+
+    /// <summary>Raised once when a daily time or volume ceiling is reached.</summary>
+    public event EventHandler<string>? DailyLimitReached;
+
+    /// <summary>Seconds of downloading accumulated today.</summary>
+    public double DailySeconds => _dailySeconds;
+
+    /// <summary>Bytes downloaded today since the scheduler started.</summary>
+    public long DailyBytes => _dailyBytes;
+
+    /// <summary>True while the daily ceiling is stopping new downloads.</summary>
+    public bool IsDailyLimitActive { get; private set; }
+
+    /// <summary>Clears today's counters, for example after the user raises the limit.</summary>
+    public void ResetDailyCounters()
+    {
+        _dailyDate = DateTime.Today;
+        _dailySeconds = 0;
+        _dailyBytes = 0;
+        _lastBytesSnapshot = -1;
+        _limitReported = false;
+        IsDailyLimitActive = false;
+        Log.Info("The daily download counters were reset.");
+    }
 
     /// <summary>The queue the scheduler controls. Defaults to the main queue.</summary>
     public int ManagedQueueId { get; set; }
@@ -64,6 +96,7 @@ public sealed class SchedulerService : IDisposable
             var settings = _settingsService.Current;
             var scheduler = settings.Scheduler;
 
+            EvaluateDailyLimit(scheduler);
             EvaluateQueueWindow(scheduler);
             EvaluateFinishedActions(scheduler);
         }
@@ -71,6 +104,93 @@ public sealed class SchedulerService : IDisposable
         {
             Log.Error("Scheduler evaluation failed.", ex);
         }
+    }
+
+    /// <summary>
+    /// Tracks how long and how much has been downloaded today, and stops everything
+    /// once a ceiling is crossed. The counters reset at midnight.
+    /// </summary>
+    private void EvaluateDailyLimit(SchedulerSettings scheduler)
+    {
+        var now = DateTime.UtcNow;
+
+        if (_dailyDate != DateTime.Today)
+        {
+            ResetDailyCounters();
+        }
+
+        var elapsed = (now - _lastTickUtc).TotalSeconds;
+        _lastTickUtc = now;
+
+        // A huge gap means the machine was asleep; do not bill the user for it.
+        if (elapsed < 0 || elapsed > 120)
+        {
+            elapsed = 0;
+        }
+
+        var totalBytes = _manager.Snapshot().Sum(item => Math.Max(0, item.DownloadedBytes));
+
+        if (_lastBytesSnapshot < 0 || totalBytes < _lastBytesSnapshot)
+        {
+            // First tick, or items were removed: rebase without counting a delta.
+            _lastBytesSnapshot = totalBytes;
+        }
+        else
+        {
+            _dailyBytes += totalBytes - _lastBytesSnapshot;
+            _lastBytesSnapshot = totalBytes;
+        }
+
+        if (_manager.HasActiveDownloads)
+        {
+            _dailySeconds += elapsed;
+        }
+
+        if (!scheduler.DailyLimitEnabled)
+        {
+            IsDailyLimitActive = false;
+            return;
+        }
+
+        var timeExceeded = scheduler.DailyLimitHours > 0 &&
+                           _dailySeconds >= scheduler.DailyLimitHours * 3600;
+
+        var volumeExceeded = scheduler.DailyLimitMegabytes > 0 &&
+                             _dailyBytes >= scheduler.DailyLimitMegabytes * 1024L * 1024L;
+
+        if (!timeExceeded && !volumeExceeded)
+        {
+            IsDailyLimitActive = false;
+            _limitReported = false;
+            return;
+        }
+
+        IsDailyLimitActive = true;
+
+        if (_limitReported)
+        {
+            return;
+        }
+
+        _limitReported = true;
+
+        var reason = timeExceeded && volumeExceeded
+            ? $"the daily limit of {scheduler.DailyLimitHours:0.#} hours and {scheduler.DailyLimitMegabytes} MB"
+            : timeExceeded
+                ? $"the daily limit of {scheduler.DailyLimitHours:0.#} hours"
+                : $"the daily limit of {scheduler.DailyLimitMegabytes} MB";
+
+        var message = $"OpenDLM reached {reason} of downloading today. " +
+                      "Active downloads have been stopped; they resume tomorrow or when you reset the counter.";
+
+        Log.Info(message);
+
+        if (scheduler.ShowLimitExceededWarning)
+        {
+            DailyLimitReached?.Invoke(this, message);
+        }
+
+        Raise(ScheduledAction.StopQueue, message);
     }
 
     private void EvaluateQueueWindow(SchedulerSettings scheduler)

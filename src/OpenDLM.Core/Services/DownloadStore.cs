@@ -169,6 +169,42 @@ public sealed class DownloadStore
         }
     }
 
+    // --------------------------------------------------------- site exceptions
+
+    public void SaveSiteExceptions(IEnumerable<SiteException> exceptions)
+    {
+        try
+        {
+            var snapshot = exceptions.ToList();
+            SettingsService.AtomicWrite(AppPaths.SitesExceptionsFile,
+                JsonSerializer.Serialize(snapshot, SettingsService.JsonOptions));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Failed to save the site exceptions.", ex);
+        }
+    }
+
+    public List<SiteException> LoadSiteExceptions()
+    {
+        try
+        {
+            if (!File.Exists(AppPaths.SitesExceptionsFile))
+            {
+                return new List<SiteException>();
+            }
+
+            var json = File.ReadAllText(AppPaths.SitesExceptionsFile);
+            return JsonSerializer.Deserialize<List<SiteException>>(json, SettingsService.JsonOptions)
+                   ?? new List<SiteException>();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Failed to load the site exceptions.", ex);
+            return new List<SiteException>();
+        }
+    }
+
     private static void Quarantine(string path)
     {
         try
