@@ -1,0 +1,25 @@
+<Application x:Class="OpenDLM.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:OpenDLM.App.Controls"
+             ShutdownMode="OnExplicitShutdown">
+    <!--
+        No StartupUri: the window is created in code so that the single-instance check,
+        the command line and the notification-area icon are all in place first.
+
+        Every colour is referenced with DynamicResource, so the palette dictionary in
+        the merged list can be swapped at runtime without reloading anything.
+    -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme/Light.xaml" />
+                <ResourceDictionary Source="Theme/Controls.xaml" />
+                <ResourceDictionary Source="Theme/DataControls.xaml" />
+                <ResourceDictionary Source="Theme/Icons.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <controls:IconLookupConverter x:Key="IconLookup" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

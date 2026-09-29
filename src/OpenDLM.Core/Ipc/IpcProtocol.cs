@@ -173,6 +173,9 @@ public sealed class IpcServer : IDisposable
 
     public event EventHandler<string>? Message;
 
+    /// <summary>Raised when a second launch asked the running instance to show its window.</summary>
+    public event EventHandler? ActivateRequested;
+
     public bool IsRunning => _listeners.Exists(task => !task.IsCompleted);
 
     public void Start()
@@ -313,6 +316,10 @@ public sealed class IpcServer : IDisposable
 
             case "setSetting":
                 return ApplySetting(request);
+
+            case "activate":
+                ActivateRequested?.Invoke(this, EventArgs.Empty);
+                return IpcProtocol.Ack("activate");
 
             case "addDownload":
             {

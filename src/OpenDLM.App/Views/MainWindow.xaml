@@ -1,0 +1,373 @@
+<Window x:Class="OpenDLM.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:OpenDLM.App.Controls"
+        Title="OpenDLM"
+        Height="640" Width="1000"
+        MinHeight="380" MinWidth="680"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Brush.Window}"
+        Foreground="{DynamicResource Brush.Text}"
+        FontSize="{DynamicResource Size.FontNormal}"
+        AllowDrop="True"
+        Drop="OnFilesDropped"
+        DragOver="OnDragOver"
+        Closing="OnWindowClosing"
+        KeyDown="OnWindowKeyDown"
+        Loaded="OnWindowLoaded">
+
+    <DockPanel>
+
+        <!-- ============================================================ menu bar -->
+        <Menu DockPanel.Dock="Top" Padding="2,1">
+            <MenuItem Header="_Tasks">
+                <MenuItem Header="_Add URL..." Command="{Binding AddUrlCommand}" InputGestureText="Ins" />
+                <MenuItem Header="Add all links from a _file..." Command="{Binding AddAllFromFileCommand}" />
+                <Separator />
+                <MenuItem Header="_Start or resume" Command="{Binding StartCommand}" />
+                <MenuItem Header="_Pause" Command="{Binding PauseCommand}" />
+                <MenuItem Header="S_top" Command="{Binding StopCommand}" />
+                <MenuItem Header="_Restart from the beginning" Command="{Binding RestartCommand}" />
+                <Separator />
+                <MenuItem Header="_Remove from list" Command="{Binding RemoveCommand}" InputGestureText="Del" />
+                <MenuItem Header="Remove _finished downloads" Command="{Binding RemoveCompletedCommand}" />
+                <Separator />
+                <MenuItem Header="Start _all" Command="{Binding StartAllCommand}" />
+                <MenuItem Header="Stop a_ll" Command="{Binding StopAllCommand}" />
+                <Separator />
+                <MenuItem Header="E_xit" Command="{Binding ExitCommand}" />
+            </MenuItem>
+
+            <MenuItem Header="_Downloads">
+                <MenuItem Header="_Open the file" Command="{Binding OpenFileCommand}" />
+                <MenuItem Header="Open the destination _folder" Command="{Binding OpenFolderCommand}" />
+                <Separator />
+                <MenuItem Header="_Copy the URL" Command="{Binding CopyUrlCommand}" />
+                <MenuItem Header="Show the _log" Command="{Binding ShowLogCommand}" />
+            </MenuItem>
+
+            <MenuItem Header="_View">
+                <MenuItem x:Name="MenuShowCategories" Header="_Category pane" IsCheckable="True" Click="OnToggleCategoryPane" />
+                <MenuItem x:Name="MenuShowDetails" Header="_Details pane" IsCheckable="True" Click="OnToggleDetailsPane" />
+                <Separator />
+                <MenuItem x:Name="MenuShowToolbar" Header="_Toolbar" IsCheckable="True" Click="OnToggleToolbar" />
+                <MenuItem x:Name="MenuShowStatusBar" Header="_Status bar" IsCheckable="True" Click="OnToggleStatusBar" />
+                <Separator />
+                <MenuItem Header="_Theme">
+                    <MenuItem x:Name="MenuThemeLight" Header="_Light" IsCheckable="True" Click="OnThemeSelected" Tag="Light" />
+                    <MenuItem x:Name="MenuThemeDark" Header="_Dark" IsCheckable="True" Click="OnThemeSelected" Tag="Dark" />
+                    <MenuItem x:Name="MenuThemeSystem" Header="_Follow Windows" IsCheckable="True" Click="OnThemeSelected" Tag="System" />
+                </MenuItem>
+            </MenuItem>
+
+            <MenuItem Header="_Tools">
+                <MenuItem Header="_Options..." Command="{Binding OptionsCommand}" />
+                <MenuItem Header="_Scheduler..." Command="{Binding SchedulerCommand}" />
+                <Separator />
+                <MenuItem Header="Open the _settings folder" Click="OnOpenDataFolder" />
+                <MenuItem Header="Open the _log folder" Click="OnOpenLogFolder" />
+            </MenuItem>
+
+            <MenuItem Header="_Help">
+                <MenuItem Header="_About OpenDLM" Command="{Binding AboutCommand}" />
+            </MenuItem>
+        </Menu>
+
+        <!-- ============================================================= toolbar -->
+        <Border x:Name="ToolbarBorder"
+                DockPanel.Dock="Top"
+                Background="{DynamicResource Brush.Toolbar}"
+                BorderBrush="{DynamicResource Brush.Border}"
+                BorderThickness="0,1,0,1"
+                Padding="4,3">
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource Style.ToolButton}"
+                        Command="{Binding AddUrlCommand}"
+                        Tag="{StaticResource Icon.Add}"
+                        ToolTip="Add a new download (Insert)"
+                        Content="_Add URL" />
+                <Button Style="{StaticResource Style.ToolButton}"
+                        Command="{Binding StartCommand}"
+                        Tag="{StaticResource Icon.Start}"
+                        ToolTip="Start or resume the selected download"
+                        Content="_Resume" />
+                <Button Style="{StaticResource Style.ToolButton}"
+                        Command="{Binding PauseCommand}"
+                        Tag="{StaticResource Icon.Pause}"
+                        ToolTip="Pause the selected download"
+                        Content="_Pause" />
+                <Button Style="{StaticResource Style.ToolButton}"
+                        Command="{Binding StopCommand}"
+                        Tag="{StaticResource Icon.Stop}"
+                        ToolTip="Stop the selected download"
+                        Content="_Stop" />
+                <Button Style="{StaticResource Style.ToolButton}"
+                        Command="{Binding RemoveCommand}"
+                        Tag="{StaticResource Icon.Remove}"
+                        ToolTip="Remove the selected download from the list (Delete)"
+                        Content="Remo_ve" />
+
+                <Border Width="1" Margin="6,3" Background="{DynamicResource Brush.Separator}" />
+
+                <Button Style="{StaticResource Style.ToolButton}"
+                        Command="{Binding OptionsCommand}"
+                        Tag="{StaticResource Icon.Options}"
+                        ToolTip="Open the options dialog"
+                        Content="_Options" />
+                <Button Style="{StaticResource Style.ToolButton}"
+                        Command="{Binding SchedulerCommand}"
+                        Tag="{StaticResource Icon.Calendar}"
+                        ToolTip="Configure the scheduler"
+                        Content="Sched_uler" />
+                <Button Style="{StaticResource Style.ToolButton}"
+                        Command="{Binding OpenFolderCommand}"
+                        Tag="{StaticResource Icon.OpenFolder}"
+                        ToolTip="Open the destination folder of the selected download"
+                        Content="_Folder" />
+                <Button Style="{StaticResource Style.ToolButton}"
+                        Command="{Binding ToggleThemeCommand}"
+                        Tag="{StaticResource Icon.About}"
+                        ToolTip="Switch between the light and the dark theme"
+                        Content="T_heme" />
+            </StackPanel>
+        </Border>
+
+        <!-- ========================================================== status bar -->
+        <Border x:Name="StatusBarBorder"
+                DockPanel.Dock="Bottom"
+                Background="{DynamicResource Brush.StatusBar}"
+                BorderBrush="{DynamicResource Brush.Border}"
+                BorderThickness="0,1,0,0"
+                Padding="6,3">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="{Binding StatusText}"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="1"
+                           Margin="12,0,0,0"
+                           Text="{Binding CategorySummary}"
+                           Style="{StaticResource Style.Muted}"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2"
+                           Margin="12,0,0,0"
+                           Text="{Binding TotalSpeedText}"
+                           Style="{StaticResource Style.Muted}"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!-- ======================================================= main content -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="CategoryColumn" Width="196" MinWidth="0" />
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="*" MinWidth="320" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Category tree -->
+            <Border x:Name="CategoryPane"
+                    Grid.Column="0"
+                    Background="{DynamicResource Brush.Panel}"
+                    BorderBrush="{DynamicResource Brush.Border}"
+                    BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top"
+                               Margin="8,6,8,4"
+                               Text="Categories"
+                               FontWeight="SemiBold"
+                               Style="{StaticResource Style.Muted}" />
+                    <TreeView x:Name="CategoryTree"
+                              ItemsSource="{Binding Categories}"
+                              SelectedItemChanged="OnCategoryChanged"
+                              BorderThickness="0">
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="{x:Type TreeViewItem}">
+                                <Setter Property="IsExpanded" Value="True" />
+                            </Style>
+                        </TreeView.ItemContainerStyle>
+                        <TreeView.ItemTemplate>
+                            <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                    <Path Width="14" Height="14"
+                                          VerticalAlignment="Center"
+                                          Fill="{DynamicResource Brush.Accent}"
+                                          Data="{Binding IconKey, Converter={StaticResource IconLookup}}" />
+                                    <TextBlock Margin="6,0,0,0"
+                                               VerticalAlignment="Center"
+                                               Text="{Binding DisplayName}" />
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1"
+                          Width="4"
+                          HorizontalAlignment="Stretch"
+                          Background="{DynamicResource Brush.Window}"
+                          ResizeBehavior="PreviousAndNext" />
+
+            <!-- Download list, search box and details -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" MinHeight="120" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition x:Name="DetailsRow" Height="132" MinHeight="0" />
+                </Grid.RowDefinitions>
+
+                <!-- Search -->
+                <Border Grid.Row="0"
+                        Background="{DynamicResource Brush.PanelAlt}"
+                        BorderBrush="{DynamicResource Brush.Border}"
+                        BorderThickness="0,0,0,1"
+                        Padding="6,5">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Path Grid.Column="0"
+                              Width="14" Height="14"
+                              VerticalAlignment="Center"
+                              Fill="{DynamicResource Brush.TextMuted}"
+                              Data="{StaticResource Icon.Search}" />
+                        <TextBox Grid.Column="1"
+                                 Margin="6,0,0,0"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Filter the list by file name, URL, description or folder" />
+                        <Button Grid.Column="2"
+                                Margin="6,0,0,0"
+                                MinWidth="30"
+                                Content="x"
+                                Command="{Binding ClearSearchCommand}"
+                                ToolTip="Clear the filter" />
+                    </Grid>
+                </Border>
+
+                <!-- The download list -->
+                <ListView x:Name="DownloadList"
+                          Grid.Row="1"
+                          ItemsSource="{Binding ItemsView}"
+                          SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                          SelectionMode="Extended"
+                          MouseDoubleClick="OnListDoubleClick"
+                          GridViewColumnHeader.Click="OnColumnHeaderClick">
+                    <ListView.View>
+                        <GridView AllowsColumnReorder="True">
+                            <GridViewColumn Header="File Name" Width="270" DisplayMemberBinding="{Binding FileName}" />
+                            <GridViewColumn Header="Size" Width="84" DisplayMemberBinding="{Binding SizeText}" />
+                            <GridViewColumn Header="Status" Width="210">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid Height="17">
+                                            <ProgressBar Value="{Binding Progress}"
+                                                         Minimum="0"
+                                                         Maximum="100"
+                                                         Height="13"
+                                                         VerticalAlignment="Center"
+                                                         BorderThickness="1" />
+                                            <TextBlock Margin="4,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource Brush.ProgressText}"
+                                                       Text="{Binding StatusText}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Downloaded" Width="112" DisplayMemberBinding="{Binding DownloadedText}" />
+                            <GridViewColumn Header="Speed" Width="96" DisplayMemberBinding="{Binding SpeedText}" />
+                            <GridViewColumn Header="Time left" Width="74" DisplayMemberBinding="{Binding TimeLeftText}" />
+                            <GridViewColumn Header="Connections" Width="84" DisplayMemberBinding="{Binding ConnectionsText}" />
+                            <GridViewColumn Header="Description" Width="260" DisplayMemberBinding="{Binding Description}" />
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+
+                <GridSplitter Grid.Row="2"
+                              Height="4"
+                              HorizontalAlignment="Stretch"
+                              Background="{DynamicResource Brush.Window}"
+                              ResizeBehavior="PreviousAndNext" />
+
+                <!-- Details pane -->
+                <Border x:Name="DetailsPane"
+                        Grid.Row="3"
+                        Background="{DynamicResource Brush.DetailsPane}"
+                        BorderBrush="{DynamicResource Brush.Border}"
+                        BorderThickness="0,1,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="220" />
+                            <ColumnDefinition Width="260" />
+                        </Grid.ColumnDefinitions>
+
+                        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Padding="8,6">
+                            <StackPanel>
+                                <TextBlock Text="{Binding SelectedItem.FileName, FallbackValue='No download selected'}"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Margin="0,4,0,0"
+                                           Style="{StaticResource Style.Muted}"
+                                           Text="{Binding SelectionSummary}"
+                                           TextWrapping="Wrap" />
+
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="76" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="URL" Style="{StaticResource Style.Muted}" />
+                                    <TextBox Grid.Row="0" Grid.Column="1" IsReadOnly="True" BorderThickness="0"
+                                             Background="Transparent" Text="{Binding SelectedItem.Url}" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Save to" Style="{StaticResource Style.Muted}" />
+                                    <TextBox Grid.Row="1" Grid.Column="1" IsReadOnly="True" BorderThickness="0"
+                                             Background="Transparent" Text="{Binding SelectedItem.Directory}" />
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Type" Style="{StaticResource Style.Muted}" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedItem.TypeText}" />
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="MD5" Style="{StaticResource Style.Muted}" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedItem.ChecksumMd5}" />
+
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Error" Style="{StaticResource Style.Muted}" />
+                                    <TextBlock Grid.Row="4" Grid.Column="1" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource Brush.Error}"
+                                               Text="{Binding SelectedItem.ErrorMessage}" />
+                                </Grid>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <Border Grid.Column="1"
+                                Margin="4"
+                                Background="{DynamicResource Brush.Panel}"
+                                BorderBrush="{DynamicResource Brush.Border}"
+                                BorderThickness="1">
+                            <controls:SpeedGraph x:Name="Graph" />
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

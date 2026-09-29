@@ -1,0 +1,95 @@
+<Window x:Class="OpenDLM.App.Views.SchedulerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Scheduler"
+        Width="520"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource Brush.Window}"
+        Foreground="{DynamicResource Brush.Text}"
+        FontSize="{DynamicResource Size.FontNormal}">
+
+    <StackPanel Margin="14">
+
+        <CheckBox x:Name="EnabledBox"
+                  Content="Use the scheduler"
+                  FontWeight="SemiBold" />
+
+        <TextBlock Margin="0,6,0,0"
+                   TextWrapping="Wrap"
+                   Style="{StaticResource Style.Muted}"
+                   Text="A queue only runs inside its window. A window that ends before it starts is treated as running overnight." />
+
+        <GroupBox Margin="0,12,0,0" Header="Queue window">
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Queue" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" x:Name="QueueBox" SelectionChanged="OnQueueChanged" />
+                </Grid>
+
+                <CheckBox x:Name="ScheduledBox"
+                          Margin="0,8,0,0"
+                          Content="Only run this queue inside the window below" />
+
+                <Grid Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Start at" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" x:Name="StartBox" Width="70" ToolTip="24-hour clock, for example 23:30" />
+                    <TextBlock Grid.Column="2" Margin="14,0,0,0" Text="Stop at" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="3" x:Name="StopBox" Width="70" HorizontalAlignment="Left"
+                             ToolTip="24-hour clock, for example 07:00" />
+                </Grid>
+
+                <TextBlock Margin="0,10,0,2" Text="Days" />
+                <WrapPanel>
+                    <CheckBox x:Name="DayMonday" Margin="0,0,12,4" Content="Monday" />
+                    <CheckBox x:Name="DayTuesday" Margin="0,0,12,4" Content="Tuesday" />
+                    <CheckBox x:Name="DayWednesday" Margin="0,0,12,4" Content="Wednesday" />
+                    <CheckBox x:Name="DayThursday" Margin="0,0,12,4" Content="Thursday" />
+                    <CheckBox x:Name="DayFriday" Margin="0,0,12,4" Content="Friday" />
+                    <CheckBox x:Name="DaySaturday" Margin="0,0,12,4" Content="Saturday" />
+                    <CheckBox x:Name="DaySunday" Margin="0,0,12,4" Content="Sunday" />
+                </WrapPanel>
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Margin="0,12,0,0" Header="When everything has finished">
+            <StackPanel>
+                <CheckBox x:Name="ExitBox" Content="Exit OpenDLM" />
+                <CheckBox x:Name="ShutdownBox" Margin="0,6,0,0" Content="Shut the computer down" />
+
+                <Grid Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Wait before acting" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" x:Name="DelayBox" Width="70" />
+                    <TextBlock Grid.Column="2" Margin="8,0,0,0" Text="seconds (so you can still cancel)" VerticalAlignment="Center" />
+                </Grid>
+
+                <TextBlock Margin="0,8,0,0"
+                           TextWrapping="Wrap"
+                           Style="{StaticResource Style.Muted}"
+                           Text="A shutdown started by OpenDLM can be cancelled from a command prompt with: shutdown /a" />
+            </StackPanel>
+        </GroupBox>
+
+        <StackPanel Margin="0,16,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="_OK" IsDefault="True" MinWidth="88" Click="OnOk" />
+            <Button Content="Cancel" IsCancel="True" MinWidth="88" Margin="8,0,0,0" />
+        </StackPanel>
+    </StackPanel>
+</Window>

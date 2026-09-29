@@ -1,0 +1,52 @@
+<!--
+    Original toolbar iconography, hand-authored as path geometry in a 16x16 box.
+
+    Shapes are solid fills where possible because the toolbar style renders a single
+    Path with Fill. Rings and cut-outs use the default EvenOdd fill rule, so an
+    inner subpath becomes a hole.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <!-- Downward arrow into a tray: "add download". -->
+    <sys:String x:Key="Icon.Add">M 7,1 L 9,1 L 9,7 L 12,7 L 8,11.5 L 4,7 L 7,7 Z M 1.5,12.5 L 14.5,12.5 L 14.5,15 L 1.5,15 Z</sys:String>
+
+    <!-- Play / resume. -->
+    <sys:String x:Key="Icon.Start">M 3,2 L 14,8 L 3,14 Z</sys:String>
+
+    <!-- Two bars: pause. -->
+    <sys:String x:Key="Icon.Pause">M 3.5,2 L 6.5,2 L 6.5,14 L 3.5,14 Z M 9.5,2 L 12.5,2 L 12.5,14 L 9.5,14 Z</sys:String>
+
+    <!-- Square: stop. -->
+    <sys:String x:Key="Icon.Stop">M 3,3 L 13,3 L 13,13 L 3,13 Z</sys:String>
+
+    <!-- Cross: remove from the list. -->
+    <sys:String x:Key="Icon.Remove">M 4.4,2.6 L 8,6.2 L 11.6,2.6 L 13,4 L 9.4,7.6 L 13,11.2 L 11.6,12.6 L 8,9 L 4.4,12.6 L 3,11.2 L 6.6,7.6 L 3,4 Z</sys:String>
+
+    <!-- Three sliders: options. -->
+    <sys:String x:Key="Icon.Options">M 1.5,2.6 L 9,2.6 L 9,4.4 L 1.5,4.4 Z M 11,2.6 L 14.5,2.6 L 14.5,4.4 L 11,4.4 Z M 1.5,7.1 L 4.5,7.1 L 4.5,8.9 L 1.5,8.9 Z M 6.5,7.1 L 14.5,7.1 L 14.5,8.9 L 6.5,8.9 Z M 1.5,11.6 L 9,11.6 L 9,13.4 L 1.5,13.4 Z M 11,11.6 L 14.5,11.6 L 14.5,13.4 L 11,13.4 Z</sys:String>
+
+    <!-- Stacked lines: queue. -->
+    <sys:String x:Key="Icon.Queue">M 2,3 L 14,3 L 14,4.6 L 2,4.6 Z M 2,7.2 L 14,7.2 L 14,8.8 L 2,8.8 Z M 2,11.4 L 14,11.4 L 14,13 L 2,13 Z</sys:String>
+
+    <!-- Folder with a hole for the tab. -->
+    <sys:String x:Key="Icon.Folder">M 1.5,2.5 L 6.5,2.5 L 8,4.5 L 14.5,4.5 L 14.5,13.5 L 1.5,13.5 Z</sys:String>
+
+    <!-- Calendar grid: scheduler. -->
+    <sys:String x:Key="Icon.Calendar">M 1.5,2 L 14.5,2 L 14.5,14.5 L 1.5,14.5 Z M 3.5,5 L 6,5 L 6,7 L 3.5,7 Z M 7,5 L 9.5,5 L 9.5,7 L 7,7 Z M 10.5,5 L 13,5 L 13,7 L 10.5,7 Z M 3.5,8.5 L 6,8.5 L 6,10.5 L 3.5,10.5 Z M 7,8.5 L 9.5,8.5 L 9.5,10.5 L 7,10.5 Z M 3.5,11.8 L 6,11.8 L 6,13.2 L 3.5,13.2 Z M 7,11.8 L 13,11.8 L 13,13.2 L 7,13.2 Z</sys:String>
+
+    <!-- Up / down arrows for reordering. -->
+    <sys:String x:Key="Icon.Up">M 8,2 L 12.5,7.5 L 9.5,7.5 L 9.5,14 L 6.5,14 L 6.5,7.5 L 3.5,7.5 Z</sys:String>
+    <sys:String x:Key="Icon.Down">M 8,14 L 3.5,8.5 L 6.5,8.5 L 6.5,2 L 9.5,2 L 9.5,8.5 L 12.5,8.5 Z</sys:String>
+
+    <!-- Magnifier: the inner subpath becomes the hole. -->
+    <sys:String x:Key="Icon.Search">M 1.5,6.5 A 5,5 0 1 1 11.5,6.5 A 5,5 0 1 1 1.5,6.5 Z M 3.3,6.5 A 3.2,3.2 0 1 1 9.7,6.5 A 3.2,3.2 0 1 1 3.3,6.5 Z M 10.6,9.2 L 14.5,13.1 L 13.1,14.5 L 9.2,10.6 Z</sys:String>
+
+    <!-- Solid disc: about. -->
+    <sys:String x:Key="Icon.About">M 1,8 A 7,7 0 1 1 15,8 A 7,7 0 1 1 1,8 Z</sys:String>
+
+    <!-- Folder with an arrow: open the destination folder. -->
+    <sys:String x:Key="Icon.OpenFolder">M 1.5,2.5 L 6.5,2.5 L 8,4.5 L 14.5,4.5 L 14.5,13.5 L 1.5,13.5 Z M 4.5,7 L 8,7 L 8,5.5 L 11,8 L 8,10.5 L 8,9 L 4.5,9 Z</sys:String>
+
+</ResourceDictionary>
