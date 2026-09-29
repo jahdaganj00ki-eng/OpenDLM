@@ -1,0 +1,37 @@
+# Normalize line endings so a Windows checkout and a Linux CI runner agree.
+* text=auto
+
+# Windows-native files keep CRLF.
+*.sln   text eol=crlf
+*.cs    text eol=crlf
+*.ps1   text eol=crlf
+*.psm1  text eol=crlf
+*.cmd   text eol=crlf
+*.bat   text eol=crlf
+*.props text eol=crlf
+*.csproj text eol=crlf
+
+# CI configuration, the browser extension and docs stay LF so the Linux runner
+# and the shell scripts that validate them behave identically everywhere.
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.js    text eol=lf
+*.mjs   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.sh    text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Binary assets must never be rewritten.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.bmp   binary
+*.zip   binary
+*.exe   binary
+*.dll   binary
+*.crx   binary
+*.xpi   binary
