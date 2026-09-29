@@ -16,4 +16,16 @@
     <ProjectReference Include="..\OpenDLM.Core\OpenDLM.Core.csproj" />
   </ItemGroup>
 
+  <!--
+    The WinForms SDK adds global usings for System.Drawing and System.Windows.Forms
+    whenever UseWindowsForms is on. Those collide with WPF across the whole project
+    (Brush, Pen, Application, ComboBox, TextBox, CheckBox, DragEventArgs, ...), so
+    they are removed here. The few files that genuinely need them - the tray icon
+    and the folder picker - import them explicitly instead.
+  -->
+  <ItemGroup>
+    <Using Remove="System.Drawing" />
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
+
 </Project>
