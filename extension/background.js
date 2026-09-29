@@ -699,7 +699,15 @@ async function handleRuntimeMessage(message, sender) {
     }
 
     case 'getSettings': {
+      // The extension's own copy, used by the popup and the content script.
       return { ok: true, settings: await getSettings() };
+    }
+
+    case 'appSettings': {
+      // The same information as the desktop app sees it, through the
+      // getSettings request of the native messaging protocol.
+      const reply = await sendToApp({ type: 'getSettings' });
+      return { ok: reply.type !== 'error', reply };
     }
 
     case 'setSettings': {

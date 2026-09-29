@@ -18,6 +18,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
     private double _speed;
     private TimeSpan? _timeLeft;
     private int _connections = 1;
+    private int _activeConnections;
     private string _fileName = string.Empty;
     private string _directory = AppPaths.DefaultDownloadDirectory;
     private string? _errorMessage;
@@ -159,11 +160,38 @@ public sealed class DownloadItem : INotifyPropertyChanged
         }
     }
 
+    /// <summary>Planned segment count for this download (1 to 32).</summary>
     [JsonPropertyName("connections")]
     public int Connections
     {
         get => _connections;
-        set => Set(ref _connections, Math.Clamp(value, 1, 32));
+        set
+        {
+            if (Set(ref _connections, Math.Clamp(value, 1, 32)))
+            {
+                Raise(nameof(ConnectionsText));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Number of segment requests streaming right now.
+    ///
+    /// Deliberately separate from <see cref="Connections"/>, which is the planned
+    /// segment count. Overloading a single property for both made the grid report
+    /// "1 connection" for a download that had just finished using eight.
+    /// </summary>
+    [JsonIgnore]
+    public int ActiveConnections
+    {
+        get => _activeConnections;
+        set
+        {
+            if (Set(ref _activeConnections, Math.Max(0, value)))
+            {
+                Raise(nameof(ConnectionsText));
+            }
+        }
     }
 
     [JsonPropertyName("supportsRanges")]
@@ -326,6 +354,12 @@ public sealed class DownloadItem : INotifyPropertyChanged
     [JsonIgnore]
     public string SpeedText => IsActive ? Fmt.Speed(_speed) : string.Empty;
 
+    /// <summary>"6 of 8" while running, or just the planned count when idle.</summary>
+    [JsonIgnore]
+    public string ConnectionsText => _activeConnections > 0
+        ? $"{_activeConnections} of {_connections}"
+        : _connections.ToString();
+
     [JsonIgnore]
     public string TimeLeftText => IsActive && _timeLeft.HasValue ? Fmt.Duration(_timeLeft) : string.Empty;
 
@@ -401,6 +435,7 @@ public sealed class DownloadItem : INotifyPropertyChanged
                      nameof(Status), nameof(StatusText), nameof(Progress), nameof(SizeText),
                      nameof(DownloadedText), nameof(DownloadedWithTotalText), nameof(SpeedText),
                      nameof(TimeLeftText), nameof(CategoryText), nameof(TypeText), nameof(FullPath),
+                     nameof(ConnectionsText), nameof(ActiveConnections),
                      nameof(IsActive), nameof(IsFinished), nameof(CanStart), nameof(CanPause), nameof(CanStop)
                  })
         {

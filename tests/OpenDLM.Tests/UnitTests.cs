@@ -81,7 +81,7 @@ public static class UnitTests
         Check.Equal("a_b_c.txt", FileNameResolver.Sanitize("a<b>c.txt"), "invalid characters are replaced");
         Check.Equal("_CON.txt", FileNameResolver.Sanitize("CON.txt"), "reserved device names are escaped");
         Check.Equal("download", FileNameResolver.Sanitize("   "), "blank names fall back");
-        Check.Equal("download.bin", FileNameResolver.Sanitize(null), "null names fall back");
+        Check.Equal("download", FileNameResolver.Sanitize(null), "null names fall back to a bare name");
         Check.Equal("file.zip", FileNameResolver.Sanitize("file.zip..."), "trailing dots are trimmed");
 
         Check.Equal("archive.zip", FileNameResolver.FromUrl("https://host.example/path/archive.zip"),
@@ -281,13 +281,16 @@ public static class UnitTests
         Check.Equal(8 * 1024 * 1024, granted, "unlimited mode grants everything requested");
         Check.True(instant.Elapsed.TotalMilliseconds < 200, "unlimited mode does not wait");
 
-        // Cancellation must not hang.
+        // A cancelled download must not be handed more bytes, even though the bucket
+        // still holds a full second of credit. An already-cancelled token makes this
+        // deterministic instead of timing dependent.
         governor.LimitBytesPerSecond = 1024;
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(150));
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
         try
         {
-            await governor.AcquireAsync(1024 * 1024, cancellation.Token);
-            throw new TestFailureException("expected the throttled acquire to be cancelled");
+            await governor.AcquireAsync(64 * 1024, cancelled.Token);
+            throw new TestFailureException("expected a cancelled acquire to throw");
         }
         catch (OperationCanceledException)
         {

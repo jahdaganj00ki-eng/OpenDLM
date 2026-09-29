@@ -147,7 +147,16 @@ public sealed class IpcServer : IDisposable
     private readonly DownloadManager _manager;
     private readonly SettingsService _settingsService;
     private readonly CancellationTokenSource _shutdown = new();
-    private Task? _listener;
+
+    /// <summary>
+    /// Concurrent pipe instances are served. A single instance would refuse a second
+    /// browser request while the first is being handled, and the native messaging
+    /// host would then report "OpenDLM is not running" to the user.
+    /// </summary>
+    private readonly List<Task> _listeners = new();
+
+    private const int ListenerCount = 4;
+
     private bool _disposed;
 
     public IpcServer(DownloadManager manager, SettingsService settingsService)
@@ -164,7 +173,7 @@ public sealed class IpcServer : IDisposable
 
     public event EventHandler<string>? Message;
 
-    public bool IsRunning => _listener is { IsCompleted: false };
+    public bool IsRunning => _listeners.Exists(task => !task.IsCompleted);
 
     public void Start()
     {
@@ -174,13 +183,20 @@ public sealed class IpcServer : IDisposable
             return;
         }
 
-        if (_listener is not null)
+        lock (_listeners)
         {
-            return;
+            if (_listeners.Count > 0)
+            {
+                return;
+            }
+
+            for (var index = 0; index < ListenerCount; index++)
+            {
+                _listeners.Add(Task.Run(() => ListenAsync(_shutdown.Token), CancellationToken.None));
+            }
         }
 
-        _listener = Task.Run(() => ListenAsync(_shutdown.Token), CancellationToken.None);
-        Log.Info($"IPC pipe '{AppPaths.PipeName}' is listening.");
+        Log.Info($"IPC pipe '{AppPaths.PipeName}' is listening on {ListenerCount} concurrent instances.");
     }
 
     private async Task ListenAsync(CancellationToken cancellationToken)
@@ -473,34 +489,50 @@ public sealed class IpcServer : IDisposable
                 var browser = settings.BrowserIntegration;
                 switch (key)
                 {
+                    // ---- the browser extension's own vocabulary ------------------
+                    case "enabled":
                     case "integrationEnabled":
                         browser.Enabled = value.GetValue<bool>();
                         settings.General.CaptureDownloads = browser.Enabled;
                         break;
-                    case "takeOverBrowserDownloads":
-                        browser.TakeOverBrowserDownloads = value.GetValue<bool>();
-                        break;
-                    case "contextMenu":
-                        browser.ContextMenu = value.GetValue<bool>();
-                        break;
+
+                    case "mediaSniffing":
                     case "mediaOverlay":
                         browser.MediaOverlay = value.GetValue<bool>();
                         break;
-                    case "minSizeBytes":
-                        browser.MinSizeBytes = value.GetValue<long>();
-                        break;
+
+                    case "forceTakeoverKey":
                     case "takeOverModifier":
                         settings.General.TakeOverModifier = value.GetValue<string>();
                         break;
+
+                    case "keepDownloadKey":
                     case "bypassModifier":
                         settings.General.BypassModifier = value.GetValue<string>();
                         break;
+
+                    case "takeoverExtensions":
                     case "takeOverExtensions":
-                        browser.TakeOverExtensions = ReadStringList(value);
+                        browser.TakeOverExtensions = ReadExtensionList(value);
                         break;
+
                     case "excludedExtensions":
-                        browser.ExcludedExtensions = ReadStringList(value);
+                        browser.ExcludedExtensions = ReadExtensionList(value);
                         break;
+
+                    // ---- additional keys the app exposes --------------------------
+                    case "takeOverBrowserDownloads":
+                        browser.TakeOverBrowserDownloads = value.GetValue<bool>();
+                        break;
+
+                    case "contextMenu":
+                        browser.ContextMenu = value.GetValue<bool>();
+                        break;
+
+                    case "minSizeBytes":
+                        browser.MinSizeBytes = value.GetValue<long>();
+                        break;
+
                     default:
                         throw new ArgumentException($"Unknown setting '{key}'.");
                 }
@@ -514,6 +546,14 @@ public sealed class IpcServer : IDisposable
         SettingsChangedByExtension?.Invoke(this, EventArgs.Empty);
         return IpcProtocol.Ack("setSetting");
     }
+
+    /// <summary>
+    /// Reads an extension list from either a JSON array or a delimited string and
+    /// normalizes every entry to the bare lowercase form the extension uses, so a
+    /// value typed as "*.ZIP" in the desktop options and "zip" in the browser agree.
+    /// </summary>
+    private static List<string> ReadExtensionList(JsonNode value)
+        => NormalizeToBareList(ReadStringList(value));
 
     private static List<string> ReadStringList(JsonNode value)
     {

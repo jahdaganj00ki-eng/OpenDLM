@@ -30,6 +30,7 @@ var cases = new List<(string Name, Func<Task> Body)>
 
     // End to end against a real local HTTP server.
     ("Multi-connection download is byte perfect", () => EngineTests.MultiConnectionDownloadIsBytePerfect(sandbox)),
+    ("Probe reports size and range support", () => EngineTests.ProbeReportsSizeAndRangeSupport(sandbox)),
     ("Server without range support falls back to one connection", () => EngineTests.ServerWithoutRangeSupportFallsBackToSingleConnection(sandbox)),
     ("Dropped connections are resumed, not restarted", () => EngineTests.DroppedConnectionsAreResumedNotRestarted(sandbox)),
     ("Pause and resume keeps data", () => EngineTests.PauseAndResumeKeepsData(sandbox)),

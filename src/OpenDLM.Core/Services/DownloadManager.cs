@@ -618,6 +618,7 @@ public sealed class DownloadManager : IDisposable
             cts.Dispose();
             item.Speed = 0;
             item.TimeLeft = null;
+            item.ActiveConnections = 0;
             PersistNow();
 
             // A slot just freed up: pull the next queued item forward.
@@ -1098,7 +1099,9 @@ public sealed class DownloadManager : IDisposable
             {
                 var bytes = handle.Sink.Bytes;
                 item.DownloadedBytes = bytes;
-                item.Connections = Math.Max(1, handle.Sink.ActiveConnections);
+                // The live connection count is a separate property; the planned
+                // segment count belongs to RunOnceAsync.
+                item.ActiveConnections = handle.Sink.ActiveConnections;
 
                 var elapsed = (now - handle.LastSampleUtc).TotalSeconds;
                 if (elapsed <= 0.05)

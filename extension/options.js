@@ -60,6 +60,7 @@ const els = {
   extensions: document.getElementById('extensions'),
   save: document.getElementById('save'),
   test: document.getElementById('test'),
+  pull: document.getElementById('pull'),
   reset: document.getElementById('reset'),
   status: document.getElementById('status'),
 };
@@ -257,6 +258,42 @@ async function restoreDefaults() {
   setStatus('Default values are shown. Choose "Save settings" to apply them.');
 }
 
+/**
+ * Asks the desktop app for its own view of the integration settings through the
+ * getSettings request, and shows what it reports in the form.
+ */
+async function loadFromApp() {
+  els.pull.disabled = true;
+  setStatus('Asking OpenDLM for its settings...');
+
+  try {
+    const result = await sendRuntime({ type: 'appSettings' });
+    const reply = result && result.reply ? result.reply : null;
+
+    if (!reply) {
+      setStatus('The extension background worker did not answer: ' + ((result && result.error) || 'unknown error'), 'bad');
+      return;
+    }
+
+    if (reply.type === 'error') {
+      setStatus('OpenDLM is not reachable: ' + (reply.message || 'unknown error'), 'bad');
+      return;
+    }
+
+    if (reply.type !== 'settings' || !reply.settings || typeof reply.settings !== 'object') {
+      setStatus('OpenDLM replied with "' + reply.type + '" instead of a settings object.', 'warn');
+      return;
+    }
+
+    const settings = normalizeSettings(reply.settings);
+    const keys = Object.keys(reply.settings);
+    render(settings);
+    setStatus('Loaded ' + keys.length + (keys.length === 1 ? ' setting' : ' settings') + ' from OpenDLM: ' + keys.join(', ') + '. Choose "Save settings" to keep them in the browser too.', 'ok');
+  } finally {
+    els.pull.disabled = false;
+  }
+}
+
 function wire() {
   els.save.addEventListener('click', () => {
     save().catch((error) => setStatus(String(error && error.message ? error.message : error), 'bad'));
@@ -264,6 +301,10 @@ function wire() {
 
   els.test.addEventListener('click', () => {
     testConnection().catch((error) => setStatus(String(error && error.message ? error.message : error), 'bad'));
+  });
+
+  els.pull.addEventListener('click', () => {
+    loadFromApp().catch((error) => setStatus(String(error && error.message ? error.message : error), 'bad'));
   });
 
   els.reset.addEventListener('click', () => {

@@ -65,6 +65,10 @@ public sealed class ThroughputGovernor
             return 0;
         }
 
+        // A cancelled download must not be handed more bytes, even when the bucket
+        // happens to hold credit.
+        cancellationToken.ThrowIfCancellationRequested();
+
         while (true)
         {
             long toWaitMs;

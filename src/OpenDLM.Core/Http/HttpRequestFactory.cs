@@ -173,11 +173,19 @@ public static class ErrorMapper
             case HttpRequestException http:
                 return MapHttp(http);
 
-            case IOException io when io.Message.Contains("space", StringComparison.OrdinalIgnoreCase):
-                return (DownloadErrorKind.DiskFull, "Not enough free space on the destination drive.");
-
             case UnauthorizedAccessException:
                 return (DownloadErrorKind.DiskError, "Access to the destination file was denied.");
+
+            // A body that ends early surfaces as a plain IOException (HttpIOException in
+            // .NET 8), NOT as an HttpRequestException. Classifying it as a disk error
+            // would make a recoverable interruption permanent, so the truncation
+            // wording is tested before the generic IOException case.
+            case IOException io when IsTruncatedResponse(io):
+                return (DownloadErrorKind.ConnectionReset,
+                    "The connection closed before the response was complete: " + io.Message);
+
+            case IOException io when io.Message.Contains("space", StringComparison.OrdinalIgnoreCase):
+                return (DownloadErrorKind.DiskFull, "Not enough free space on the destination drive.");
 
             case IOException io:
                 return (DownloadErrorKind.DiskError, "A disk error occurred: " + io.Message);
@@ -191,6 +199,23 @@ public static class ErrorMapper
             default:
                 return (DownloadErrorKind.Unknown, exception.Message);
         }
+    }
+
+    /// <summary>
+    /// Recognises the several wordings the BCL uses when an HTTP response body ends
+    /// before its declared length. .NET 8 reports this as <c>HttpIOException</c> with
+    /// "The response ended prematurely...". It is a transport failure, not a disk
+    /// failure, and retrying it is exactly the right thing to do.
+    /// </summary>
+    private static bool IsTruncatedResponse(IOException exception)
+    {
+        var message = exception.Message;
+        return message.Contains("prematurely", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("ResponseEnded", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("unexpected end", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("unexpected EOF", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("connection was closed", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("forcibly closed", StringComparison.OrdinalIgnoreCase);
     }
 
     private static (DownloadErrorKind, string) MapHttp(HttpRequestException exception)

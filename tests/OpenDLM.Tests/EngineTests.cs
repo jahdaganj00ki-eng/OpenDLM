@@ -86,7 +86,8 @@ public static class EngineTests
         Check.Equal(DownloadStatus.Complete, item.Status, "download status (" + item.ErrorMessage + ")");
         Check.BytesEqual(server.Payload, await File.ReadAllBytesAsync(item.FullPath), "downloaded content");
         Check.Equal((long)server.Payload.Length, item.TotalBytes, "reported total size");
-        Check.Equal(4, item.Connections, "four segments were created");
+        Check.Equal(4, item.Connections, "four segments were planned");
+        Check.Equal(0, item.ActiveConnections, "no connections stay open once the download is complete");
         Check.True(server.RangeRequestCount >= 4,
             "expected at least four range requests, saw " + server.RangeRequestCount);
 
@@ -388,6 +389,25 @@ public static class EngineTests
         // allowing for the initial one-second bucket.
         Check.True(stopwatch.Elapsed.TotalSeconds >= 2.0,
             $"the speed limit did not bite; the transfer took only {stopwatch.Elapsed.TotalSeconds:0.00}s");
+    }
+
+    /// <summary>
+    /// Locks in exactly what the probe reports. If this regresses, every other engine
+    /// test becomes misleading: a probe that reports an unknown size silently
+    /// disables segmentation, and the download still succeeds, just slowly.
+    /// </summary>
+    public static async Task ProbeReportsSizeAndRangeSupport(string root)
+    {
+        using var server = new TestHttpServer(3 * 1024 * 1024);
+        var settings = CreateSettings(null);
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        var probe = await manager.ProbeAsync(server.Url());
+
+        Check.True(probe.Success, "the probe succeeded: " + probe.ErrorMessage);
+        Check.Equal((long)server.Payload.Length, probe.ContentLength, "the probe reported the exact size");
+        Check.True(probe.SupportsRanges, "the probe detected byte-range support");
+        Check.Equal("file.bin", probe.SuggestedFileName, "the probe derived the file name from the URL");
     }
 
     /// <summary>The queue must hold items until they are explicitly started.</summary>

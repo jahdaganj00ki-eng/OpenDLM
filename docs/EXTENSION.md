@@ -206,8 +206,13 @@ exactly what it created, updated or removed.
    [section 9](#9-log-and-configuration-locations)).
 
 The options page (`chrome://extensions` -> OpenDLM -> **Extension options**, or
-the popup's **OpenDLM options** button) has a **Test connection** button that
-performs the same check.
+the popup's **OpenDLM options** button) has two buttons that perform the same
+check:
+
+* **Test connection** sends the `hello` request and reports the app version and
+  protocol number.
+* **Load from OpenDLM** sends the `getSettings` request and renders whatever the
+  app reports back into the form.
 
 ---
 
@@ -245,7 +250,7 @@ Every message is a JSON object with a `"type"` string.
 | `ping` | none | Liveness check. |
 | `addDownload` | see below | Queue one download. |
 | `addBatch` | `items`: array of `addDownload` objects | Queue many downloads. |
-| `getSettings` | none | Read integration settings from the app. |
+| `getSettings` | none | Read integration settings from the app. Used by the options page's **Load from OpenDLM** action. |
 | `setSetting` | `key` (string), `value` (any JSON) | Write one integration setting. |
 
 The host relays the request bytes to the app unchanged and relays the app's

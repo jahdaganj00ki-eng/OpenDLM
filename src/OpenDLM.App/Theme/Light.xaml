@@ -1,0 +1,55 @@
+<!--
+    OpenDLM light palette.
+    Every key defined here must also exist in Dark.xaml with the same name, because
+    the theme is swapped at runtime by replacing this dictionary.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Surfaces -->
+    <SolidColorBrush x:Key="Brush.Window"        Color="#FFF7F7F7" />
+    <SolidColorBrush x:Key="Brush.Panel"         Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="Brush.PanelAlt"      Color="#FFF2F2F2" />
+    <SolidColorBrush x:Key="Brush.Toolbar"       Color="#FFEDEFF2" />
+    <SolidColorBrush x:Key="Brush.MenuBar"       Color="#FFF4F5F7" />
+    <SolidColorBrush x:Key="Brush.StatusBar"     Color="#FFEDEFF2" />
+    <SolidColorBrush x:Key="Brush.Header"        Color="#FFE4E8ED" />
+    <SolidColorBrush x:Key="Brush.HeaderHover"   Color="#FFD6DDE5" />
+    <SolidColorBrush x:Key="Brush.HeaderPressed" Color="#FFC3CDD8" />
+    <SolidColorBrush x:Key="Brush.DetailsPane"   Color="#FFFBFBFB" />
+
+    <!-- Lines -->
+    <SolidColorBrush x:Key="Brush.Border"        Color="#FFB9BFC7" />
+    <SolidColorBrush x:Key="Brush.BorderStrong"  Color="#FF8A929C" />
+    <SolidColorBrush x:Key="Brush.GridLine"      Color="#FFE3E6EA" />
+    <SolidColorBrush x:Key="Brush.Separator"     Color="#FFCFD4DA" />
+
+    <!-- Text -->
+    <SolidColorBrush x:Key="Brush.Text"          Color="#FF1B1F24" />
+    <SolidColorBrush x:Key="Brush.TextMuted"     Color="#FF5F6873" />
+    <SolidColorBrush x:Key="Brush.TextDisabled"  Color="#FFA3AAB3" />
+    <SolidColorBrush x:Key="Brush.TextOnAccent"  Color="#FFFFFFFF" />
+
+    <!-- Accent and interaction states -->
+    <SolidColorBrush x:Key="Brush.Accent"        Color="#FF1F6FC4" />
+    <SolidColorBrush x:Key="Brush.AccentHover"   Color="#FF2A82DC" />
+    <SolidColorBrush x:Key="Brush.AccentPressed" Color="#FF185AA0" />
+    <SolidColorBrush x:Key="Brush.Selection"     Color="#FFCCE0F5" />
+    <SolidColorBrush x:Key="Brush.SelectionInactive" Color="#FFE2E8EE" />
+    <SolidColorBrush x:Key="Brush.Hover"         Color="#FFE8EFF7" />
+    <SolidColorBrush x:Key="Brush.Pressed"       Color="#FFD3E1F0" />
+
+    <!-- Progress and status -->
+    <SolidColorBrush x:Key="Brush.Progress"      Color="#FF3FA24B" />
+    <SolidColorBrush x:Key="Brush.ProgressTrack" Color="#FFE1E4E8" />
+    <SolidColorBrush x:Key="Brush.ProgressText"  Color="#FF14181C" />
+    <SolidColorBrush x:Key="Brush.Error"         Color="#FFC0392B" />
+    <SolidColorBrush x:Key="Brush.Success"       Color="#FF2E7D32" />
+    <SolidColorBrush x:Key="Brush.Warning"       Color="#FFB26A00" />
+
+    <!-- Scrollbars -->
+    <SolidColorBrush x:Key="Brush.ScrollTrack"       Color="#FFF0F0F0" />
+    <SolidColorBrush x:Key="Brush.ScrollThumb"       Color="#FFC2C7CD" />
+    <SolidColorBrush x:Key="Brush.ScrollThumbHover"  Color="#FF9AA1A9" />
+
+</ResourceDictionary>

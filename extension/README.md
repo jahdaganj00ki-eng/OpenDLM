@@ -1,6 +1,6 @@
 # OpenDLM browser extension
 
-A Manifest V3 extension that hands downloads to the **OpenDLM** desktop app — a
+A Manifest V3 extension that hands downloads to the **OpenDLM** desktop app, a
 free, MIT-licensed download manager for Windows.
 
 It is plain JavaScript with **no build step, no bundler and no dependencies**.
@@ -21,7 +21,7 @@ The folder you are reading is exactly what gets loaded into the browser.
 1. Open `chrome://extensions` (or `edge://extensions`, `brave://extensions`).
 2. Turn on **Developer mode** (top right).
 3. Choose **Load unpacked** and select this `extension` folder.
-4. Copy the **ID** shown on the extension card — you need it in the next step.
+4. Copy the **ID** shown on the extension card; you need it in the next step.
 5. Register the native messaging host (see `docs/EXTENSION.md`):
 
    ```powershell
@@ -47,9 +47,9 @@ The folder you are reading is exactly what gets loaded into the browser.
 
 Defaults:
 
-* **Alt** + click a link — force OpenDLM to take this download even if its file
+* **Alt** + click a link: force OpenDLM to take this download even if its file
   type is not on the takeover list.
-* **Shift** + click a link — force the **browser** to keep this download.
+* **Shift** + click a link: force the **browser** to keep this download.
 
 Both keys are configurable in the options page. Ctrl/Cmd + click always means
 "open in a new tab" and is never intercepted.
