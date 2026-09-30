@@ -97,14 +97,15 @@ jobs:
           }
 
           # Keep the self test away from any real profile data.
-          $home = Join-Path (Get-Location) "artifacts\selftest-home"
-          New-Item -ItemType Directory -Force -Path $home | Out-Null
-          $env:OPEN_DLM_HOME = $home
+          # (Deliberately not called $home: that is a read-only automatic variable.)
+          $selfTestHome = Join-Path (Get-Location) "artifacts\selftest-home"
+          New-Item -ItemType Directory -Force -Path $selfTestHome | Out-Null
+          $env:OPEN_DLM_HOME = $selfTestHome
 
           $process = Start-Process -FilePath $exe -ArgumentList "--selftest" -PassThru -Wait
           Write-Output "self test exit code: $($process.ExitCode)"
 
-          $report = Join-Path $home "logs\selftest.txt"
+          $report = Join-Path $selfTestHome "logs\selftest.txt"
           if (Test-Path $report) {
             Write-Output "--- self test report ---"
             Get-Content $report | ForEach-Object { Write-Output $_ }
