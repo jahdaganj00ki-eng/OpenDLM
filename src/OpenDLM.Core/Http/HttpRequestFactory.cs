@@ -143,6 +143,20 @@ public static class HttpRequestFactory
 /// <summary>Maps transport and HTTP failures onto the user-facing <see cref="DownloadErrorKind"/>.</summary>
 public static class ErrorMapper
 {
+    /// <summary>True for the FTP reply codes that mean "give me credentials".</summary>
+    private static bool IsFtpAuthenticationFailure(WebException exception)
+    {
+        if (exception.Response is FtpWebResponse response)
+        {
+            return (int)response.StatusCode is 530 or 531 or 532;
+        }
+
+        // No response body to inspect, so fall back to the wording .NET uses.
+        var message = exception.Message;
+        return message.Contains("Not logged on", StringComparison.OrdinalIgnoreCase)
+               || message.Contains("530", StringComparison.Ordinal);
+    }
+
     /// <summary>
     /// True when trying the exact same request again could plausibly succeed.
     /// A 404 or a full disk will not fix itself, and retrying those only delays
@@ -172,6 +186,17 @@ public static class ErrorMapper
 
             case HttpRequestException http:
                 return MapHttp(http);
+
+            // FTP reports a failed login as a WebException wrapping the response,
+            // not as an HttpRequestException. Without this case a 530 would be
+            // classified as a generic (and retryable) failure, so the user would
+            // never be asked for the user name and password the server wants.
+            case WebException web when IsFtpAuthenticationFailure(web):
+                return (DownloadErrorKind.AuthenticationRequired,
+                    "The server requires a user name and password.");
+
+            case WebException web:
+                return (DownloadErrorKind.Unknown, web.Message);
 
             case UnauthorizedAccessException:
                 return (DownloadErrorKind.DiskError, "Access to the destination file was denied.");
