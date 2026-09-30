@@ -26,6 +26,7 @@ var cases = new List<(string Name, Func<Task> Body)>
     ("Credential protection round trips", UnitTests.CredentialProtectionRoundTrips),
     ("Settings JSON round trips faithfully", UnitTests.SettingsJsonRoundTripsFaithfully),
     ("Governor throttles to the configured rate", UnitTests.GovernorThrottlesToConfiguredRate),
+    ("Proxy auto-configuration script is evaluated", UnitTests.ProxyAutoConfigurationScriptIsEvaluated),
     ("Modifier specifications normalize", UnitTests.ModifierSpecificationsNormalize),
     ("Queue windows handle overnight ranges", UnitTests.QueueWindowsHandleOvernightRanges),
     ("Host matcher handles sub-domains", UnitTests.HostMatcherHandlesSubdomains),

@@ -39,11 +39,16 @@ public sealed class HttpClientProvider : IDisposable
             }
 
             _client?.Dispose();
+            PacResolver?.Dispose();
+            PacResolver = new PacResolver();
             _client = Build(settings.Connection, settings.Advanced);
             _signature = signature;
             return _client;
         }
     }
+
+    /// <summary>Evaluates PAC scripts for the automatic proxy mode. Null when never needed.</summary>
+    private PacResolver? PacResolver { get; set; }
 
     private static string BuildSignature(ConnectionSettings connection) => string.Join('|',
         connection.ProxyMode,
@@ -57,6 +62,7 @@ public sealed class HttpClientProvider : IDisposable
         connection.UseHttpsProxy,
         connection.UseFtpProxy,
         string.Join(',', connection.ProxyExceptions ?? Enumerable.Empty<string>()),
+        connection.ProxyPacUrl,
         connection.IgnoreCertificateErrors,
         connection.TimeoutSeconds,
         connection.MaxRedirects,
@@ -111,6 +117,27 @@ public sealed class HttpClientProvider : IDisposable
             }
 
             case ProxyMode.Auto:
+            {
+                // A configured PAC script is evaluated per destination. With no
+                // script this is the same as the system setting.
+                var resolver = PacResolver;
+                var pacProxy = resolver is null
+                    ? null
+                    : OpenDLMProxy.ForAutomaticMode(connection, resolver);
+
+                if (pacProxy is not null)
+                {
+                    handler.Proxy = pacProxy;
+                    handler.UseProxy = true;
+                }
+                else
+                {
+                    handler.UseProxy = true;
+                }
+
+                break;
+            }
+
             case ProxyMode.System:
             default:
                 // UseProxy = true with a null Proxy means "use the system settings".
@@ -158,6 +185,8 @@ public sealed class HttpClientProvider : IDisposable
             _disposed = true;
             _client?.Dispose();
             _client = null;
+            PacResolver?.Dispose();
+            PacResolver = null;
         }
     }
 }

@@ -27,6 +27,9 @@ public sealed class OpenDLMProxy : IWebProxy
     private readonly bool _bypassLocal;
     private readonly List<string> _exceptions;
 
+    /// <summary>Set only in automatic mode, where the script decides per destination.</summary>
+    private Func<string, Uri?>? _pac;
+
     public OpenDLMProxy(ConnectionSettings settings, string? plainProxyPassword)
     {
         _useHttp = settings.UseHttpProxy;
@@ -43,15 +46,55 @@ public sealed class OpenDLMProxy : IWebProxy
         }
     }
 
+    /// <summary>
+    /// Builds the proxy used by the automatic mode, which consults a PAC script for
+    /// every destination instead of routing everything through one address.
+    /// Returns null when no script is configured, so the caller can fall back to the
+    /// system settings.
+    /// </summary>
+    public static OpenDLMProxy? ForAutomaticMode(ConnectionSettings settings, PacResolver resolver)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ProxyPacUrl) || !resolver.IsAvailable)
+        {
+            return null;
+        }
+
+        var pacUrl = settings.ProxyPacUrl.Trim();
+        return new OpenDLMProxy(settings, null).WithPac(url => resolver.Resolve(url, pacUrl));
+    }
+
+    private OpenDLMProxy WithPac(Func<string, Uri?> evaluator)
+    {
+        _pac = evaluator;
+        return this;
+    }
+
     public ICredentials? Credentials { get; set; }
 
-    /// <summary>True when the manual proxy is actually usable.</summary>
-    public bool IsUsable => _proxyUri is not null;
+    /// <summary>True when this proxy has somewhere to send requests.</summary>
+    public bool IsUsable => _pac is not null || _proxyUri is not null;
 
     /// <summary>The configured proxy, or null to connect directly.</summary>
     public Uri? GetProxy(Uri destination)
     {
-        if (destination is null || _proxyUri is null)
+        if (destination is null)
+        {
+            return null;
+        }
+
+        // A user exception always wins, even over what the script says.
+        if (IsExcluded(destination))
+        {
+            return null;
+        }
+
+        if (_pac is not null)
+        {
+            // The script decides; DIRECT and failures both come back as null.
+            return _pac(destination.AbsoluteUri);
+        }
+
+        if (_proxyUri is null)
         {
             return null;
         }

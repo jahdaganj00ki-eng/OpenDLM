@@ -377,6 +377,14 @@
                                   x:Name="SocksDnsBox" Content="Let the SOCKS5 proxy resolve names" />
                     </Grid>
 
+                    <TextBlock Text="Proxy auto-configuration (PAC) script" Style="{StaticResource Style.SectionHeading}" />
+                    <TextBox x:Name="PacUrlBox"
+                             ToolTip="A file path or an http(s) URL. Windows evaluates it for every destination, so one script can route different hosts differently." />
+                    <TextBlock Margin="0,4,0,0"
+                               TextWrapping="Wrap"
+                               Style="{StaticResource Style.Muted}"
+                               Text="Only used by the automatic mode. Windows runs the script itself, so everything a PAC script can do works here, including per-host routing and DIRECT results." />
+
                     <TextBlock Text="Connect directly to these hosts" Style="{StaticResource Style.SectionHeading}" />
                     <TextBox x:Name="ProxyExceptionsBox"
                              Height="80"

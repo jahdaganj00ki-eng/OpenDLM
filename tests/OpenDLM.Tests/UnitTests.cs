@@ -298,6 +298,69 @@ public static class UnitTests
         }
     }
 
+    public static Task ProxyAutoConfigurationScriptIsEvaluated()
+    {
+        // Parsing the script's answer is the part that has to be exactly right,
+        // because everything else is Windows' job.
+        Check.Equal(null, PacResolver.ParseProxyString("DIRECT"), "DIRECT goes direct");
+        Check.Equal(null, PacResolver.ParseProxyString("PROXY"), "a bare PROXY has no endpoint");
+        Check.Equal(null, PacResolver.ParseProxyString(""), "an empty answer goes direct");
+        Check.Equal(null, PacResolver.ParseProxyString(null), "a missing answer goes direct");
+        Check.Equal(null, PacResolver.ParseProxyString("SOCKS socks.example:1080"),
+            "a script that only offers SOCKS falls back to direct rather than guessing");
+
+        var proxy = PacResolver.ParseProxyString("PROXY proxy.example:3128");
+        Check.NotNull(proxy, "a PROXY answer is parsed");
+        Check.Equal("proxy.example", proxy!.Host, "the host is taken from the answer");
+        Check.Equal(3128, proxy.Port, "the port is taken from the answer");
+
+        var defaulted = PacResolver.ParseProxyString("PROXY proxy.example");
+        Check.Equal(8080, defaulted?.Port, "a missing port gets the conventional default");
+
+        var first = PacResolver.ParseProxyString("SOCKS socks.example:1080; PROXY proxy.example:3128");
+        Check.Equal("proxy.example", first?.Host, "the first usable PROXY entry wins");
+
+        // The whole wiring: a script in automatic mode, and nothing without one.
+        var settings = new ConnectionSettings { ProxyMode = ProxyMode.Auto, ProxyPacUrl = "" };
+        using (var resolver = new PacResolver())
+        {
+            Check.Equal(null, OpenDLMProxy.ForAutomaticMode(settings, resolver),
+                "automatic mode without a script defers to the system proxy");
+        }
+
+        settings.ProxyPacUrl = "https://proxy.example/proxy.pac";
+        using (var resolver = new PacResolver())
+        {
+            var automatic = OpenDLMProxy.ForAutomaticMode(settings, resolver);
+            if (resolver.IsAvailable)
+            {
+                Check.NotNull(automatic, "automatic mode with a script builds a PAC proxy");
+                Check.True(automatic!.IsUsable, "the PAC proxy is usable");
+
+                // A user exception must still win over what the script says.
+                var withException = new ConnectionSettings
+                {
+                    ProxyMode = ProxyMode.Auto,
+                    ProxyPacUrl = "https://proxy.example/proxy.pac",
+                    ProxyExceptions = new List<string> { "direct.example" },
+                    ProxyBypassLocal = false
+                };
+
+                var strict = OpenDLMProxy.ForAutomaticMode(withException, resolver);
+                Check.Equal(null, strict?.GetProxy(new Uri("http://direct.example/file.zip")),
+                    "an exception overrides the script");
+            }
+            else
+            {
+                // Windows refused the session; automatic mode must degrade safely.
+                Check.Equal(null, OpenDLMProxy.ForAutomaticMode(settings, resolver),
+                    "without a WinHTTP session the mode degrades to the system proxy");
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     public static Task ModifierSpecificationsNormalize()
     {
         Check.Equal("Alt", GeneralSettings.NormalizeModifier("alt", "Alt"), "a single modifier");

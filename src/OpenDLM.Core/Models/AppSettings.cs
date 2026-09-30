@@ -439,6 +439,14 @@ public sealed class ConnectionSettings
     [JsonPropertyName("proxyExceptions")]
     public List<string> ProxyExceptions { get; set; } = new();
 
+    /// <summary>
+    /// A proxy auto-configuration script, used by the automatic proxy mode. Windows
+    /// evaluates it per destination, so a single script can route different hosts
+    /// through different proxies, or send some of them direct.
+    /// </summary>
+    [JsonPropertyName("proxyPacUrl")]
+    public string ProxyPacUrl { get; set; } = string.Empty;
+
     /// <summary>Use passive mode for FTP transfers.</summary>
     [JsonPropertyName("ftpPassive")]
     public bool FtpPassive { get; set; } = true;

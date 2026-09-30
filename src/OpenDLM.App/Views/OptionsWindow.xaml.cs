@@ -225,6 +225,7 @@ public partial class OptionsWindow : Window
         ProxyFtpBox.IsChecked = connection.UseFtpProxy;
         SocksDnsBox.IsChecked = connection.Socks5ProxyDns;
         SelectEnum(SocksTypeBox, connection.SocksType);
+        PacUrlBox.Text = connection.ProxyPacUrl;
         ProxyExceptionsBox.Text = string.Join(Environment.NewLine,
             connection.ProxyExceptions ?? new List<string>());
 
@@ -433,6 +434,7 @@ public partial class OptionsWindow : Window
         connection.UseFtpProxy = ProxyFtpBox.IsChecked == true;
         connection.SocksType = ReadEnum(SocksTypeBox, SocksType.None);
         connection.Socks5ProxyDns = SocksDnsBox.IsChecked == true;
+        connection.ProxyPacUrl = PacUrlBox.Text.Trim();
         connection.ProxyExceptions = SplitLines(ProxyExceptionsBox.Text);
 
         var browser = _working.BrowserIntegration;
