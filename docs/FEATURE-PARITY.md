@@ -15,10 +15,14 @@ or copied, and no asset, icon, string table or help file from it appears in this
 repository. Every feature below is implemented from public behaviour and written from
 scratch.
 
-One finding worth stating first: **that installation has no dark mode.** A recursive
-search of its entire settings tree for `dark|theme|colou?r|skin` returns nothing. Its
-interface is a classic light Win32 application. OpenDLM ships light, dark and
-follow-Windows themes, so this is an addition rather than a parity item.
+One finding worth stating first, because it corrects an earlier claim: **this
+installation does have a dark mode.** It is a menu item, `34042 = "Dunkelmodus"`
+in the language file, and id `21206` explains that *"IDM uses the dark mode when it
+is enabled in the Windows settings"* — it follows the Windows app theme, and id
+`21205` says a restart is required for the change to take effect. It is absent from
+the registry entirely, which is why a registry-only search wrongly concludes the
+feature does not exist. OpenDLM offers the same three choices, applies them without
+a restart, and follows Windows by default.
 
 ## Legend
 
@@ -91,8 +95,7 @@ follow-Windows themes, so this is an addition rather than a parity item.
 
 | Reference setting | Registry evidence | OpenDLM | Note |
 |---|---|---|---|
-| Dark mode | (no key found) | Done | Not a parity item — the reference has none |
-| Light / dark / follow Windows | — | Done | Switchable at runtime, no restart |
+| Dark mode | `Languages\*.lng` id 34042 "Dark mode" (menu), 21206 (follows the Windows setting) | Done | Light, dark and follow-Windows, switchable at runtime. IDM needs a restart for the change to take effect; OpenDLM applies it immediately, and follows the Windows setting by default |
 | Toolbar style | `ToolbarStyle` | Done | Icons and text / icons only / large icons |
 | Large buttons | `LargeButtons` | Done | Via the large-icons toolbar style |
 | Toolbar state | `ToolbarState_v5.11` | Partial | Order and width of toolbar buttons are fixed; the list view columns *are* reorderable |
@@ -100,7 +103,7 @@ follow-Windows themes, so this is an addition rather than a parity item.
 | Window size and position | `windowPlacementV6` | Done | Validated against the current screen topology |
 | Sort column and direction | `sortOrder` | Done | Persisted |
 | Column list | `ListSettings` | Done | FileName, Size, Status, Downloaded, Speed, Time left, Connections, Date added, Save to, Queue, Referer, Last try, Description |
-| "Parent" column | `ListSettings\Parent_wp` | N/A | Refers to a parent download when one item is split into several child downloads. OpenDLM has no such concept: every download is one file |
+| "Parent" column | `ListSettings\Parent_wp` | Partial | Means the *parent web page* the download came from (`21216` "Übergeordnete Webseite", listed as a search field next to the referer), not a parent download. OpenDLM records the page URL and shows it as "Referer", but has no separate parent-site column or the "arrange by parent site" command |
 | Language / 40 translation files | `LanguageID`, `Languages\*.lng` | Partial | English only. Translations would have to be written from scratch — the reference's `.lng` files are not copied |
 | Start dialog | `StartDlgShowing` | Done | |
 | Complete dialog | `ComplDlgShowing`, `evDownloadComplete` | Done | Size, time taken, average speed, MD5, open file / folder |
@@ -162,8 +165,95 @@ and the browser extension with its own tested settings vocabulary.
 site-specific video grabber, licence activation, third-party help files and
 translations.
 
-**Known differences, all deliberate and none of them settings the user can see as
-missing:** the "Parent" grid column refers to splitting one download into several child
-downloads, a concept OpenDLM does not have; the reference ships 40+ translation files
-and OpenDLM ships English; and the reference's Insert/Delete takeover keys are replaced
-by the Insert and Delete shortcuts in the list.
+## Known differences, all deliberate and none of them settings the user can see as
+missing:** the reference ships 40+ translation files and OpenDLM ships English; its
+Insert/Delete takeover keys are replaced by the Insert and Delete shortcuts in the
+list; its launcher, update checker and site-specific video grabber are not
+reproduced, because they are proprietary content rather than settings.
+
+## Gaps this comparison found that are not yet closed
+
+Confirmed against the language file and the installed package, listed in rough
+priority order:
+
+- **Dial Up / VPN tab** (ids `21221`, `21222`, `1058`, `1307`-`1313`): a Windows
+  dial-up/VPN connection picker with redial attempts and interval, and the ability
+  to run downloads over it. OpenDLM only has a "hang up" post-download action.
+- **Find dialog** (ids `34040`, `34041`, `1807`-`1812`, `21122`-`21124`): `Ctrl+F`
+  search across file name, description, page name, link, parent page and referer,
+  with partial/exact match, settings, and find-next. OpenDLM has a single filter box.
+- **Export and import** (ids `32809`/`32821`/`32823`, `32816`/`32818`): export the
+  list to an IDM export file or a text file, and import both back.
+- **Language selection UI** (menu id `m32841`): the setting exists in OpenDLM but
+  there is no menu to change it, and only English ships.
+- **Font selection** (ids `m34045`, `34045`, `34046`, `21218`): choose the UI font
+  and reset it.
+- **Toolbar icon styles** (ids `34010`-`34012`, `33510`, `20571`-`20573`): classic,
+  small and large toolbar icon sets.
+- **Main-window sort entries** (ids `32828`-`32840`): sort by added, name, size,
+  status, time left, rate and description. OpenDLM can sort by nine columns but has
+  no explicit "sort by" menu.
+- **"Load now"** (`32773`): start only the first segment immediately.
+- **Catch basket** (`32809` in the Tasks menu): recover interrupted downloads.
+- **Clean up** (`32794`): remove finished and failed entries in one step.
+- **Per-protocol proxy "take from the browser"** (ids `1107`, `1113`, `1141`, plus
+  `1863` "from the system"): adopt the proxy the browser is using.
+- **Use the browser's proxy/SOCKS when a captured download fails** (id `1844`).
+- **Browser integration for Internet Explorer, Netscape and MSN** (ids `1065`,
+  `1068`, `1253`, `1255`, `1256`, `1257`): OpenDLM covers the modern Chromium and
+  Firefox browsers only.
+- **Sounds tab with preview** (ids `1320`, `1172`, `1091`): pick and test an event
+  sound.
+- **Plugins section** in the General tab.
+- **Add to queue instead of starting** as a per-dialog choice (id `1862`).
+- **Find and preview ZIP contents** before downloading (ids `1429`, `1430`, `1405`,
+  `1421`, `1437`; the "Zip preview" dialog at line 333).
+- **Video grabber**: site-aware capture, resolution selection, merging audio and
+  video streams (`21219`, `21130`, `21192`). Proprietary site data; deliberately
+  out of scope.
+- **Tip of the day, update check, registration/licensing** — out of scope by design.
+
+## Browser extension, compared file by file
+
+The installed package is a single CRX (`6_43_1_0.crx`, id
+`NGPAMPAPPNMEPGILOJFOHADHHMBHLAEK`, manifest version 6.43.1). Its layout:
+
+| Reference file | Size | OpenDLM |
+|---|---|---|
+| `background.js` | 56 KB | `background.js`, ~23 KB |
+| `content.js` | 29 KB | `content.js` + `content.css` |
+| `document.js` | 5 KB | none |
+| `debug.js` | 693 B | none |
+| `captured.html` / `captured.js` | 1.8 KB / 1 KB | none |
+| `welcome.html` / `welcome.js` | 8.8 KB / 3.2 KB | none |
+| `_locales/` | 17 languages | none (English only) |
+| `_metadata/verified_contents.json` | 5.4 KB | n/a (not store-listed) |
+
+Permissions it requests, and whether OpenDLM has them:
+
+| Reference permission | OpenDLM |
+|---|---|
+| `nativeMessaging`, `storage`, `downloads`, `contextMenus`, `scripting`, `tabs`, `cookies` | yes |
+| `webNavigation` | no |
+| `webRequest`, `declarativeNetRequest` | no |
+| `downloads.shelf`, `downloads.ui` | no |
+| `management` | no |
+| `proxy` | no |
+| optional `notifications`, `system.display` | `notifications` yes, `system.display` no |
+| `host_permissions: <all_urls>` | yes |
+| `externally_connectable` to the vendor's own sites | n/a |
+| `minimum_chrome_version: 109` | not declared |
+
+User-visible features found in the extension that OpenDLM lacks:
+
+- **"Transfer download to"** an in-progress browser download (string `menu_download_item`).
+- **"Download selected links"** (string `menu_download_selected`).
+- **Toolbar button with three states** - normal, `[DISABLED]`, `[ERROR]` - and a
+  click that toggles integration. OpenDLM opens a popup instead.
+- **A first-run welcome page.**
+- **Seventeen localisations.**
+- A dedicated `debug.js` diagnostic mode.
+
+Features both have: link interception with modifier keys, media/video detection,
+"download all links", takeover of browser-started downloads, takeover of
+file types, and native messaging to the application.

@@ -52,9 +52,12 @@ registry settings** under `HKCU\Software\DownloadManager` — 80 top-level value
 206 subkeys, which is that product's complete settings surface. No file of that
 installation was executed, decompiled or copied.
 
-One finding worth stating: **that installation has no dark mode.** A recursive search
-of its whole settings tree for `dark|theme|colou?r|skin` returns nothing. OpenDLM's
-light, dark and system themes are an addition, not a parity feature.
+One finding worth stating: **this installation does have a dark mode.** It is a
+menu item — `34042 = "Dunkelmodus"` in the language file — and id `21206` explains
+that IDM uses the dark mode when it is enabled in the Windows settings, with id
+`21205` noting that a restart is required. It is absent from the registry, which is
+why a registry-only search concludes the feature does not exist. OpenDLM offers the
+same three choices, applies them without a restart, and follows Windows by default.
 
 ---
 
