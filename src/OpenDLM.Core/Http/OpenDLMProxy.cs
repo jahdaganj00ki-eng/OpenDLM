@@ -30,6 +30,14 @@ public sealed class OpenDLMProxy : IWebProxy
     /// <summary>Set only in automatic mode, where the script decides per destination.</summary>
     private Func<string, Uri?>? _pac;
 
+    /// <summary>
+    /// When the user asks to adopt the browser's proxy, this resolves the system proxy
+    /// for a destination. Chrome and Edge on Windows are configured through the
+    /// standard WinINET connection settings, so reading them is what "take the
+    /// browser's proxy" means here.
+    /// </summary>
+    private Func<Uri, Uri?>? _fromBrowser;
+
     public OpenDLMProxy(ConnectionSettings settings, string? plainProxyPassword)
     {
         _useHttp = settings.UseHttpProxy;
@@ -37,6 +45,15 @@ public sealed class OpenDLMProxy : IWebProxy
         _useFtp = settings.UseFtpProxy;
         _bypassLocal = settings.ProxyBypassLocal;
         _exceptions = settings.ProxyExceptions ?? new List<string>();
+
+        _takeHttpFromBrowser = settings.TakeHttpProxyFromBrowser;
+        _takeHttpsFromBrowser = settings.TakeHttpsProxyFromBrowser;
+        _takeFtpFromBrowser = settings.TakeFtpProxyFromBrowser;
+
+        if (_takeHttpFromBrowser || _takeHttpsFromBrowser || _takeFtpFromBrowser)
+        {
+            _fromBrowser = ResolveSystemProxy;
+        }
 
         _proxyUri = BuildProxyUri(settings);
 
@@ -69,6 +86,66 @@ public sealed class OpenDLMProxy : IWebProxy
         return this;
     }
 
+    /// <summary>
+    /// Reads the proxy Windows is configured with for a destination. Chrome and Edge
+    /// both use the WinINET connection settings, so this is what "the browser's proxy"
+    /// means on Windows; a direct result is reported as null.
+    /// </summary>
+    private static Uri? ResolveSystemProxy(Uri destination)
+    {
+        try
+        {
+            // The default proxy honours the WinINET settings and any auto-config URL,
+            // which is the same source the browsers read.
+            var proxy = System.Net.WebRequest.GetSystemWebProxy()
+                .GetProxy(destination);
+
+            if (proxy is null)
+            {
+                return null;
+            }
+
+            // A proxy that answers with the destination itself means "no proxy".
+            return proxy.Host.Equals(destination.Host, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : proxy;
+        }
+        catch (Exception ex)
+        {
+            Core.Util.Log.Warn("Could not read the system proxy: " + ex.Message);
+            return null;
+        }
+    }
+
+    private bool BrowserForbids(Uri destination)
+    {
+        if (_fromBrowser is null)
+        {
+            return true;
+        }
+
+        if (destination.Scheme == Uri.UriSchemeHttp)
+        {
+            return !_takeHttpFromBrowser;
+        }
+
+        if (destination.Scheme == Uri.UriSchemeHttps)
+        {
+            return !_takeHttpsFromBrowser;
+        }
+
+        if (destination.Scheme == Uri.UriSchemeFtp)
+        {
+            return !_takeFtpFromBrowser;
+        }
+
+        return true;
+    }
+
+    private bool _takeHttpFromBrowser;
+    private bool _takeHttpsFromBrowser;
+    private bool _takeFtpFromBrowser;
+
     public ICredentials? Credentials { get; set; }
 
     /// <summary>True when this proxy has somewhere to send requests.</summary>
@@ -94,19 +171,21 @@ public sealed class OpenDLMProxy : IWebProxy
             return _pac(destination.AbsoluteUri);
         }
 
-        if (_proxyUri is null)
-        {
-            return null;
-        }
-
         if (IsProtocolDisabled(destination))
         {
             return null;
         }
 
-        if (IsExcluded(destination))
+        // A scheme set to "use the browser's proxy" prefers whatever Windows is
+        // configured with, and only falls back to the manual address if that yields
+        // nothing.
+        if (_fromBrowser is not null && !BrowserForbids(destination))
         {
-            return null;
+            var browserProxy = _fromBrowser(destination);
+            if (browserProxy is not null)
+            {
+                return browserProxy;
+            }
         }
 
         return _proxyUri;

@@ -208,12 +208,35 @@ public sealed class SchedulerService : IDisposable
 
             if (scheduler.StartQueueOnSchedule)
             {
+                // Bring the VPN or dial-up connection up before the queue starts, so
+                // the first download does not fail on a dead tunnel.
+                var dialUp = _settingsService.Current.DialUp;
+                if (dialUp.Enabled && !string.IsNullOrWhiteSpace(dialUp.ConnectionName) &&
+                    !DialUpManager.IsConnected(dialUp.ConnectionName))
+                {
+                    if (DialUpManager.Dial(dialUp, out var message))
+                    {
+                        Raise(ScheduledAction.StartQueue, message);
+                    }
+                    else
+                    {
+                        Log.Warn(message);
+                    }
+                }
+
                 Raise(ScheduledAction.StartQueue, $"The scheduled window for the {(ManagedQueueId == 0 ? "main" : "selected")} queue has opened.");
             }
         }
         else if (!isOpen && _queueWindowOpen)
         {
             _queueWindowOpen = false;
+
+            // Drop the VPN or dial-up connection again once the window closes.
+            var dialUp = _settingsService.Current.DialUp;
+            if (dialUp.Enabled && dialUp.HangUpWhenFinished)
+            {
+                DialUpManager.HangUp(dialUp);
+            }
 
             if (scheduler.StopQueueOnSchedule)
             {

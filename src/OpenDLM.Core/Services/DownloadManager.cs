@@ -356,6 +356,150 @@ public sealed class DownloadManager : IDisposable
         }
     }
 
+    /// <summary>
+    /// Starts a download with only the first segment, the reference's "load now".
+    ///
+    /// The first block lands immediately so playback and preview can begin, and the
+    /// remaining segments continue in the background once that block is done. The
+    /// file is not renamed until the whole transfer completes, so a half-finished file
+    /// never appears at the destination.
+    /// </summary>
+    public async Task<bool> StartFirstSegmentOnlyAsync(DownloadItem item, CancellationToken cancellationToken = default)
+    {
+        var segments = item.Segments;
+
+        if (segments.Count <= 1 || item.TotalBytes <= 0)
+        {
+            // Nothing to stage: a single-connection transfer is already "now".
+            await StartAsync(item, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+
+        // Trim the plan to the first segment for this run.
+        var first = segments[0];
+        var remaining = segments.Skip(1).Select(segment => new Models.Segment
+        {
+            Index = segment.Index,
+            Start = segment.Start,
+            End = segment.End,
+            Position = segment.Position
+        }).ToList();
+
+        item.Segments = new List<Models.Segment>
+        {
+            new() { Index = first.Index, Start = first.Start, End = first.End, Position = first.Position }
+        };
+
+        // A plan that covers only the first block must not be mistaken for the whole
+        // file when the outcome is interpreted.
+        var planTotal = first.End - first.Start + 1;
+        var started = await StartAsync(item, cancellationToken).ConfigureAwait(false);
+
+        if (!started)
+        {
+            item.Segments = segments;
+            return false;
+        }
+
+        // Continue with the rest once the first block is on disk.
+        _ = Task.Run(async () =>
+        {
+            await WaitForCompletionAsync(item, cancellationToken).ConfigureAwait(false);
+
+            if (item.Status == DownloadStatus.Complete || item.IsActive)
+            {
+                return;
+            }
+
+            Log.Info($"'{item.FileName}': the first block is ready, continuing the rest.");
+            item.Segments = remaining;
+            await StartAsync(item, CancellationToken.None).ConfigureAwait(false);
+        }, CancellationToken.None);
+
+        Log.Warn($"'{item.FileName}': started with the first {Fmt.Bytes(planTotal)} only.");
+        return true;
+    }
+
+    /// <summary>Waits until the item is no longer active, so a staged run can hand over.</summary>
+    private static async Task WaitForCompletionAsync(DownloadItem item, CancellationToken cancellationToken)
+    {
+        // A short, bounded poll: the engine does not publish a per-item completion
+        // event for the one-segment plan, and a long wait would hold a thread.
+        for (var tick = 0; tick < 100_000; tick++)
+        {
+            if (!item.IsActive)
+            {
+                return;
+            }
+
+            try
+            {
+                await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes every finished and failed entry in one step, the reference's "clean up".
+    /// Reports how many entries went, so the view can say so.
+    /// </summary>
+    public int CleanUp()
+    {
+        var doomed = Snapshot()
+            .Where(item => item.Status is DownloadStatus.Complete or DownloadStatus.Error)
+            .ToList();
+
+        foreach (var item in doomed)
+        {
+            Remove(item, deleteFiles: false);
+        }
+
+        if (doomed.Count > 0)
+        {
+            Log.Info($"Cleaned up {doomed.Count} finished or failed download(s).");
+        }
+
+        return doomed.Count;
+    }
+
+    /// <summary>
+    /// Recovers downloads that were interrupted: any entry still holding a partial
+    /// file or a resume sidecar. The reference calls this the catch basket.
+    /// </summary>
+    public IReadOnlyList<DownloadItem> RecoverInterrupted()
+    {
+        var recovered = new List<DownloadItem>();
+
+        foreach (var item in Snapshot())
+        {
+            if (item.Status is DownloadStatus.Downloading or DownloadStatus.Connecting or DownloadStatus.Finalizing)
+            {
+                // The engine thought it was running; after a restart it is not.
+                item.Status = item.DownloadedBytes > 0 ? DownloadStatus.Paused : DownloadStatus.Stopped;
+                recovered.Add(item);
+            }
+
+            if (item.Status != DownloadStatus.Complete && !item.Status.Equals(DownloadStatus.Error) &&
+                File.Exists(item.PartialPath) && item.DownloadedBytes == 0)
+            {
+                // A partial file with no recorded progress can still be continued.
+                item.Status = DownloadStatus.Stopped;
+            }
+        }
+
+        if (recovered.Count > 0)
+        {
+            Log.Info($"Recovered {recovered.Count} interrupted download(s).");
+            PersistNow();
+        }
+
+        return recovered;
+    }
+
     /// <summary>Adds an item to the list without starting it.</summary>
     public void Add(DownloadItem item)
     {

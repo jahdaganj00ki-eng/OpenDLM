@@ -55,6 +55,31 @@ public enum FileTypeAction
     Ask = 2
 }
 
+/// <summary>How much of a toolbar icon set to show.</summary>
+public enum ToolbarIconSize
+{
+    Classic = 0,
+    Small = 1,
+    Large = 2
+}
+
+/// <summary>Which field a search matches against.</summary>
+public enum SearchField
+{
+    FileName = 0,
+    Description = 1,
+    Url = 2,
+    ParentPage = 3,
+    Referer = 4
+}
+
+/// <summary>Whether a search is satisfied by a substring or needs the whole field.</summary>
+public enum SearchMatchMode
+{
+    Partial = 0,
+    Exact = 1
+}
+
 /// <summary>Classification of a download failure, which drives the message shown to the user.</summary>
 public enum DownloadErrorKind
 {
@@ -84,7 +109,6 @@ public enum SocksType
     Socks4 = 1,
     Socks5 = 2
 }
-
 /// <summary>How much the toolbar shows.</summary>
 public enum ToolbarStyle
 {

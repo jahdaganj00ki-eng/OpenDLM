@@ -69,6 +69,21 @@ public sealed class AppSettings
     [JsonPropertyName("connection")]
     public ConnectionSettings Connection { get; set; } = new();
 
+    [JsonPropertyName("dialUp")]
+    public DialUpSettings DialUp { get; set; } = new();
+
+    [JsonPropertyName("search")]
+    public SearchSettings Search { get; set; } = new();
+
+    [JsonPropertyName("searchFields")]
+    public SearchFieldSettings SearchFields { get; set; } = new();
+
+    [JsonPropertyName("uiFont")]
+    public UiFontSettings UiFont { get; set; } = new();
+
+    [JsonPropertyName("toolbarIcons")]
+    public ToolbarIconSettings ToolbarIcons { get; set; } = new();
+
     [JsonPropertyName("scheduler")]
     public SchedulerSettings Scheduler { get; set; } = new();
 
@@ -102,6 +117,11 @@ public sealed class AppSettings
         Connection.SpeedLimitKbPerSecond = Math.Clamp(Connection.SpeedLimitKbPerSecond, 0, 10_000_000);
 
         Interface.RefreshIntervalMs = Math.Clamp(Interface.RefreshIntervalMs, 100, 5000);
+        Interface.Theme = Enum.IsDefined(Interface.Theme) ? Interface.Theme : AppTheme.System;
+        UiFont.Size = Math.Clamp(UiFont.Size, 8, 24);
+        DialUp.RedialAttempts = Math.Clamp(DialUp.RedialAttempts, 0, 1000);
+        DialUp.RedialIntervalSeconds = Math.Clamp(DialUp.RedialIntervalSeconds, 1, 3600);
+        Search.Match = Enum.IsDefined(Search.Match) ? Search.Match : SearchMatchMode.Partial;
         Downloads.ClipboardMinSizeBytes = Math.Max(0, Downloads.ClipboardMinSizeBytes);
 
         if (string.IsNullOrWhiteSpace(Downloads.DefaultDownloadDirectory))
@@ -347,6 +367,14 @@ public sealed class DownloadsSettings
     [JsonPropertyName("defaultQueueId")]
     public int DefaultQueueId { get; set; }
 
+    /// <summary>Remove finished and failed entries in one step, like the reference's "clean up".</summary>
+    [JsonPropertyName("cleanUpOnExit")]
+    public bool CleanUpOnExit { get; set; }
+
+    /// <summary>Start only the first segment immediately, without waiting for the whole file.</summary>
+    [JsonPropertyName("loadNowStartsFirstSegmentOnly")]
+    public bool LoadNowStartsFirstSegmentOnly { get; set; }
+
     internal void Normalize()
     {
         if (CategoryFolders is null || CategoryFolders.Count == 0)
@@ -480,11 +508,73 @@ public sealed class ConnectionSettings
     /// <summary>Behaviour when an FTP or plain-HTTP server rejects range requests.</summary>
     [JsonPropertyName("singleConnectionFallback")]
     public bool SingleConnectionFallback { get; set; } = true;
+
+    /// <summary>Adopt the proxy the browser is using, per protocol, instead of a fixed address.</summary>
+    [JsonPropertyName("takeHttpProxyFromBrowser")]
+    public bool TakeHttpProxyFromBrowser { get; set; }
+
+    [JsonPropertyName("takeHttpsProxyFromBrowser")]
+    public bool TakeHttpsProxyFromBrowser { get; set; }
+
+    [JsonPropertyName("takeFtpProxyFromBrowser")]
+    public bool TakeFtpProxyFromBrowser { get; set; }
+
+    /// <summary>
+    /// When a download the browser handed over fails, retry it through the proxy the
+    /// browser itself used. Some sites only work through that path.
+    /// </summary>
+    [JsonPropertyName("useBrowserProxyOnFailure")]
+    public bool UseBrowserProxyOnFailure { get; set; }
+
+    /// <summary>Experimental: use Microsoft's TLS 1.3 stack rather than OpenSSL's.</summary>
+    [JsonPropertyName("useMicrosoftTls13")]
+    public bool UseMicrosoftTls13 { get; set; }
+}
+
+/// <summary>
+/// Windows dial-up and VPN connection settings, the reference's "Dial Up / VPN" tab.
+/// </summary>
+public sealed class DialUpSettings
+{
+    /// <summary>Use a Windows dial-up or VPN connection at all.</summary>
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
+
+    /// <summary>Name of the connection as it appears in Windows, for example "VPN-Arbeitsplatz".</summary>
+    [JsonPropertyName("connectionName")]
+    public string ConnectionName { get; set; } = string.Empty;
+
+    [JsonPropertyName("userName")]
+    public string UserName { get; set; } = string.Empty;
+
+    [JsonPropertyName("passwordProtected")]
+    public string? PasswordProtected { get; set; }
+
+    [JsonPropertyName("domain")]
+    public string Domain { get; set; } = string.Empty;
+
+    /// <summary>Redial attempts before giving up. 0 means never give up.</summary>
+    [JsonPropertyName("redialAttempts")]
+    public int RedialAttempts { get; set; } = 3;
+
+    [JsonPropertyName("redialIntervalSeconds")]
+    public int RedialIntervalSeconds { get; set; } = 30;
+
+    /// <summary>Only dial when a download is actually waiting for this connection.</summary>
+    [JsonPropertyName("dialOnlyWhenNeeded")]
+    public bool DialOnlyWhenNeeded { get; set; } = true;
+
+    /// <summary>Hang the connection up again once the queue has drained.</summary>
+    [JsonPropertyName("hangUpWhenFinished")]
+    public bool HangUpWhenFinished { get; set; } = true;
+
+    /// <summary>Windows connections found on this machine, filled in by the options dialog.</summary>
+    [JsonPropertyName("availableConnections")]
+    public List<string> AvailableConnections { get; set; } = new();
 }
 
 public sealed class SchedulerSettings
-{
-    [JsonPropertyName("enabled")]
+{    [JsonPropertyName("enabled")]
     public bool Enabled { get; set; }
 
     [JsonPropertyName("startQueueOnSchedule")]
