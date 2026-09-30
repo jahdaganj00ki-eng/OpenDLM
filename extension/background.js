@@ -248,6 +248,10 @@ function describeError(error) {
  * and more reliable.
  */
 async function sendToApp(message) {
+  // Any conversation with the app is a good moment to notice that the app-side
+  // settings may have changed the menu set. Throttled to once a minute.
+  scheduleContextMenus(false);
+
   try {
     const reply = await chrome.runtime.sendNativeMessage(HOST_NAME, message);
     if (reply && typeof reply === 'object') {
@@ -500,15 +504,86 @@ chrome.downloads.onCreated.addListener((item) => {
  * Context menus
  * ------------------------------------------------------------------ */
 
-function createContextMenus() {
+/** The three entries the desktop app can switch on or off individually. */
+const DEFAULT_MENU_SELECTION = {
+  downloadWith: true,
+  downloadAll: true,
+  media: true,
+};
+
+/**
+ * Which browser this copy is running in.
+ *
+ * The app keeps one integration switch per browser, so the menus are only created
+ * where the user left that browser enabled. Chromium forks such as Brave identify
+ * themselves as Chrome on purpose, so a fork is only ever claimed when it says so;
+ * for the ones that stay silent the Chrome switch is honoured, and the Brave switch
+ * is accepted as an alternative for that ambiguous case.
+ */
+function detectBrowser() {
+  const ua = navigator.userAgent || '';
+  if (/\bEdg\//.test(ua)) {
+    return 'edge';
+  }
+  if (/\bOPR\//.test(ua)) {
+    return 'opera';
+  }
+  if (/\bVivaldi\//.test(ua)) {
+    return 'vivaldi';
+  }
+  return 'chrome';
+}
+
+/**
+ * Turns the app's integration settings into the set of entries to offer.
+ * Missing or unreachable settings fall back to offering all three: a user who has
+ * not configured anything gets the useful default rather than no menus at all.
+ */
+function selectMenus(appSettings) {
+  if (!appSettings || typeof appSettings !== 'object') {
+    return { ...DEFAULT_MENU_SELECTION };
+  }
+
+  const browsers = appSettings.browsers || {};
+  const mine = detectBrowser();
+  const mineEnabled = browsers[mine] !== false ||
+    (mine === 'chrome' && browsers.brave !== false);
+
+  const wanted = appSettings.enabled !== false && mineEnabled;
+  const entries = appSettings.contextMenus || {};
+
+  return {
+    downloadWith: wanted && entries.downloadWith !== false,
+    downloadAll: wanted && entries.downloadAll !== false,
+    media: wanted && entries.media !== false,
+  };
+}
+
+async function createContextMenus() {
+  let selection = { ...DEFAULT_MENU_SELECTION };
+
+  try {
+    const reply = await sendToApp({ type: 'getSettings' });
+    if (reply && reply.type === 'settings' && reply.settings) {
+      selection = selectMenus(reply.settings);
+    }
+  } catch (error) {
+    // The desktop app may not be running yet. Offering all three is a safe answer.
+  }
+
+  const menus = [];
+  if (selection.downloadWith) {
+    menus.push({ id: 'opendlm-link', title: 'Download with OpenDLM', contexts: ['link'] });
+  }
+  if (selection.media) {
+    menus.push({ id: 'opendlm-media', title: 'Download this media with OpenDLM', contexts: ['video', 'audio', 'image'] });
+  }
+  if (selection.downloadAll) {
+    menus.push({ id: 'opendlm-page', title: 'Download all links with OpenDLM', contexts: ['page'] });
+  }
+
   chrome.contextMenus.removeAll(() => {
     void chrome.runtime.lastError;
-
-    const menus = [
-      { id: 'opendlm-link', title: 'Download with OpenDLM', contexts: ['link'] },
-      { id: 'opendlm-media', title: 'Download this media with OpenDLM', contexts: ['video', 'audio', 'image'] },
-      { id: 'opendlm-page', title: 'Download all links with OpenDLM', contexts: ['page'] },
-    ];
 
     for (const menu of menus) {
       chrome.contextMenus.create(menu, () => {
@@ -516,6 +591,37 @@ function createContextMenus() {
       });
     }
   });
+}
+
+/**
+ * Rebuilds the menus at most once a minute, driven by ordinary activity.
+ *
+ * The desktop app cannot push to an extension, so the menus are refreshed whenever
+ * the extension next talks to it. That keeps an app-side change visible within a
+ * minute of the user doing anything at all, without a timer or an extra permission.
+ */
+let lastMenuBuild = 0;
+let menuBuildInFlight = false;
+
+function scheduleContextMenus(force) {
+  // createContextMenus() asks the app for its settings through sendToApp(), which
+  // comes straight back here. Without the in-flight guard that is a loop.
+  if (menuBuildInFlight) {
+    return;
+  }
+
+  const now = Date.now();
+  if (!force && now - lastMenuBuild < 60000) {
+    return;
+  }
+  lastMenuBuild = now;
+  menuBuildInFlight = true;
+
+  createContextMenus()
+    .catch(() => {})
+    .finally(() => {
+      menuBuildInFlight = false;
+    });
 }
 
 /** Runs inside the page via chrome.scripting; must be self-contained. */
@@ -793,7 +899,7 @@ async function seedDefaults() {
 }
 
 chrome.runtime.onInstalled.addListener((details) => {
-  createContextMenus();
+  scheduleContextMenus(true);
   seedDefaults().catch(() => {});
   if (details && details.reason === 'update') {
     // A stale "host missing" flag would hide a genuine problem after an update.
@@ -802,7 +908,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  createContextMenus();
+  scheduleContextMenus(true);
 });
 
 // Exposed for answers to the popup and options pages without duplicating logic.

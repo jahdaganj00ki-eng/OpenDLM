@@ -191,6 +191,13 @@ jobs:
           done
           exit $status
 
+      # The menu set and the modifier handling are the parts of the extension that
+      # decide what the user actually sees, so they get real tests. The functions are
+      # lifted out of the shipping source rather than copied, which means a rename
+      # fails the test instead of silently testing nothing.
+      - name: Test the extension logic
+        run: node extension/tests/logic.test.mjs
+
       - name: Regenerate the icons and prove they are reproducible
         run: |
           node scripts/make-icons.mjs

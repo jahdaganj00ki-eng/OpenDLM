@@ -239,6 +239,9 @@ public partial class OptionsWindow : Window
         VivaldiBox.IsChecked = browser.Vivaldi;
         TakeOverBrowserBox.IsChecked = browser.TakeOverBrowserDownloads;
         ContextMenuBox.IsChecked = browser.ContextMenu;
+        ContextMenuLinkBox.IsChecked = browser.ContextMenuDownloadWith;
+        ContextMenuAllBox.IsChecked = browser.ContextMenuDownloadAll;
+        ContextMenuMediaBox.IsChecked = browser.ContextMenuMedia;
         MediaOverlayBox.IsChecked = browser.MediaOverlay;
         BrowserMinSizeBox.Text = (browser.MinSizeBytes / 1024).ToString(CultureInfo.InvariantCulture);
 
@@ -447,6 +450,9 @@ public partial class OptionsWindow : Window
         browser.Vivaldi = VivaldiBox.IsChecked == true;
         browser.TakeOverBrowserDownloads = TakeOverBrowserBox.IsChecked == true;
         browser.ContextMenu = ContextMenuBox.IsChecked == true;
+        browser.ContextMenuDownloadWith = ContextMenuLinkBox.IsChecked == true;
+        browser.ContextMenuDownloadAll = ContextMenuAllBox.IsChecked == true;
+        browser.ContextMenuMedia = ContextMenuMediaBox.IsChecked == true;
         browser.MediaOverlay = MediaOverlayBox.IsChecked == true;
         browser.MinSizeBytes = ReadLong(BrowserMinSizeBox) * 1024;
         browser.TakeOverExtensions = SplitLines(TakeOverExtensionsBox.Text);

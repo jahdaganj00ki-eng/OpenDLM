@@ -568,6 +568,18 @@ public sealed class BrowserIntegrationSettings
     [JsonPropertyName("contextMenu")]
     public bool ContextMenu { get; set; } = true;
 
+    /// <summary>Offer the "Download with OpenDLM" entry on a link.</summary>
+    [JsonPropertyName("contextMenuDownloadWith")]
+    public bool ContextMenuDownloadWith { get; set; } = true;
+
+    /// <summary>Offer the "Download all links with OpenDLM" entry on a page.</summary>
+    [JsonPropertyName("contextMenuDownloadAll")]
+    public bool ContextMenuDownloadAll { get; set; } = true;
+
+    /// <summary>Offer the "Download this media with OpenDLM" entry on video, audio and images.</summary>
+    [JsonPropertyName("contextMenuMedia")]
+    public bool ContextMenuMedia { get; set; } = true;
+
     /// <summary>Show the floating "download this media" badge over detected video/audio elements.</summary>
     [JsonPropertyName("mediaOverlay")]
     public bool MediaOverlay { get; set; } = true;

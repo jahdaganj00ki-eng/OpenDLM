@@ -479,6 +479,25 @@ public sealed class IpcServer : IDisposable
             ["takeoverExtensions"] = ToJsonArray(takeOver),
 
             ["contextMenu"] = browser.ContextMenu,
+            // Which of the three entries to offer, so the extension can create
+            // exactly the menu items the user switched on instead of one blanket flag.
+            ["contextMenus"] = new JsonObject
+            {
+                ["downloadWith"] = browser.ContextMenuDownloadWith,
+                ["downloadAll"] = browser.ContextMenuDownloadAll,
+                ["media"] = browser.ContextMenuMedia
+            },
+            // Per-browser integration switches, so an extension running in a browser
+            // the user disabled offers no menus at all.
+            ["browsers"] = new JsonObject
+            {
+                ["chrome"] = browser.Chrome,
+                ["edge"] = browser.Edge,
+                ["firefox"] = browser.Firefox,
+                ["brave"] = browser.Brave,
+                ["opera"] = browser.Opera,
+                ["vivaldi"] = browser.Vivaldi
+            },
             ["takeOverBrowserDownloads"] = browser.TakeOverBrowserDownloads,
             ["minSizeBytes"] = browser.MinSizeBytes,
             ["excludedExtensions"] = ToJsonArray(excluded),
@@ -597,6 +616,37 @@ public sealed class IpcServer : IDisposable
 
                     case "contextMenu":
                         browser.ContextMenu = value.GetValue<bool>();
+                        break;
+
+                    case "contextMenuDownloadWith":
+                        browser.ContextMenuDownloadWith = value.GetValue<bool>();
+                        break;
+
+                    case "contextMenuDownloadAll":
+                        browser.ContextMenuDownloadAll = value.GetValue<bool>();
+                        break;
+
+                    case "contextMenuMedia":
+                        browser.ContextMenuMedia = value.GetValue<bool>();
+                        break;
+
+                    case "browserChrome":
+                        browser.Chrome = value.GetValue<bool>();
+                        break;
+                    case "browserEdge":
+                        browser.Edge = value.GetValue<bool>();
+                        break;
+                    case "browserFirefox":
+                        browser.Firefox = value.GetValue<bool>();
+                        break;
+                    case "browserBrave":
+                        browser.Brave = value.GetValue<bool>();
+                        break;
+                    case "browserOpera":
+                        browser.Opera = value.GetValue<bool>();
+                        break;
+                    case "browserVivaldi":
+                        browser.Vivaldi = value.GetValue<bool>();
                         break;
 
                     case "minSizeBytes":
