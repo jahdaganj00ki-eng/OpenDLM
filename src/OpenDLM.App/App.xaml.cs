@@ -304,6 +304,23 @@ public partial class App : Application
             window.Close();
         });
 
+        Check("archive preview window", () =>
+        {
+            var item = engine.CreateItem(new AddDownloadRequest
+            {
+                Url = "https://example.com/archive.zip",
+                FileName = "archive.zip",
+                Directory = AppPaths.TempDirectory
+            });
+            item.Status = DownloadStatus.Complete;
+
+            // No archive exists at that path, so the preview reports no entries; the
+            // point here is that the window and its resources load.
+            var window = new ZipPreviewWindow(item.FullPath) { Owner = null };
+            window.Show();
+            window.Close();
+        });
+
         engine.Dispose();
     }
 

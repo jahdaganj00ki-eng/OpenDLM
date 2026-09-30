@@ -50,6 +50,7 @@
                 <MenuItem Header="Find a _download..." Command="{Binding FindCommand}" InputGestureText="Ctrl+F" />
                 <MenuItem Header="S_cheduler..." Command="{Binding SchedulerCommand}" />
                 <Separator />
+                <MenuItem Header="Archive _contents..." Click="OnShowZipPreview" />
                 <MenuItem Header="_Open the file" Command="{Binding OpenFileCommand}" />
                 <MenuItem Header="Open the destination _folder" Command="{Binding OpenFolderCommand}" />
                 <Separator />

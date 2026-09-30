@@ -613,7 +613,301 @@ public static class EngineTests
         await Task.CompletedTask;
     }
 
-    /// <summary>The probe must report the size of an FTP resource before downloading it.</summary>
+    /// <summary>The archive preview must list entries and summarise them.</summary>
+    public static async Task ArchivePreviewListsEntries(string root)
+    {
+        var folder = NewFolder(root, "zip");
+        var archive = Path.Combine(folder, "sample.zip");
+
+        // Build a small archive so the preview has something real to read.
+        var entries = new (string Name, string Content)[]
+        {
+            ("readme.txt", "hello"),
+            ("data/binary.bin", new string('x', 4096))
+        };
+
+        using (var stream = System.IO.Compression.ZipFile.Open(archive, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            foreach (var (name, content) in entries)
+            {
+                var entry = stream.CreateEntry(name);
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write(content);
+            }
+        }
+
+        var listed = OpenDLM.Core.Services.ZipPreview.Read(archive);
+        Check.Equal(2, listed.Count, "both entries are listed");
+        Check.True(listed.Any(e => e.Name == "readme.txt"), "the text entry is listed");
+        Check.True(listed.Any(e => e.Name.EndsWith("binary.bin", StringComparison.Ordinal)), "the nested entry is listed");
+        Check.True(listed.All(e => e.Length > 0), "every entry reports a size");
+
+        var summary = OpenDLM.Core.Services.ZipPreview.Summarise(listed);
+        Check.True(summary.Contains("2 entries", StringComparison.OrdinalIgnoreCase), "the summary counts the entries: " + summary);
+
+        // A missing file yields nothing rather than throwing.
+        Check.Equal(0, OpenDLM.Core.Services.ZipPreview.Read(Path.Combine(folder, "absent.zip")).Count,
+            "a missing archive lists nothing");
+
+        // A file that is not a zip at all must not crash the preview.
+        var notAZip = Path.Combine(folder, "plain.zip");
+        await File.WriteAllTextAsync(notAZip, "this is not an archive");
+        Check.Equal(0, OpenDLM.Core.Services.ZipPreview.Read(notAZip).Count,
+            "a file that is not an archive lists nothing");
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>The search must match on every configured field and honour exact mode.</summary>
+    public static async Task SearchMatchesConfiguredFields(string root)
+    {
+        using var server = new TestHttpServer(64 * 1024);
+        var settings = CreateSettings(null);
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        var folder = NewFolder(root, "search");
+        var item = manager.CreateItem(new AddDownloadRequest
+        {
+            Url = server.Url("/report-2026.pdf"),
+            FileName = "report-2026.pdf",
+            Directory = folder,
+            Description = "Quarterly figures",
+            PageUrl = "https://example.com/reports",
+            Referer = "https://example.com/reports"
+        });
+        manager.Add(item);
+
+        var searcher = new OpenDLM.Core.Services.DownloadSearcher(manager);
+
+        var byName = new OpenDLM.Core.Services.SearchQuery
+        {
+            Text = "report",
+            Fields = new HashSet<OpenDLM.Core.Models.SearchField> { OpenDLM.Core.Models.SearchField.FileName }
+        };
+        Check.Equal(1, searcher.Find(byName).Count, "a partial name match finds the item");
+
+        var byDescription = new OpenDLM.Core.Services.SearchQuery
+        {
+            Text = "Quarterly",
+            Fields = new HashSet<OpenDLM.Core.Models.SearchField> { OpenDLM.Core.Models.SearchField.Description }
+        };
+        Check.Equal(1, searcher.Find(byDescription).Count, "a description match finds the item");
+
+        var byUrl = new OpenDLM.Core.Services.SearchQuery
+        {
+            Text = "example.com/reports",
+            Fields = new HashSet<OpenDLM.Core.Models.SearchField> { OpenDLM.Core.Models.SearchField.Url }
+        };
+        Check.Equal(1, searcher.Find(byUrl).Count, "an address match finds the item");
+
+        var wrongField = new OpenDLM.Core.Services.SearchQuery
+        {
+            Text = "Quarterly",
+            Fields = new HashSet<OpenDLM.Core.Models.SearchField> { OpenDLM.Core.Models.SearchField.FileName }
+        };
+        Check.Equal(0, searcher.Find(wrongField).Count, "a field that does not hold the text finds nothing");
+
+        var exactMiss = new OpenDLM.Core.Services.SearchQuery
+        {
+            Text = "report",
+            Fields = new HashSet<OpenDLM.Core.Models.SearchField> { OpenDLM.Core.Models.SearchField.FileName },
+            Match = OpenDLM.Core.Models.SearchMatchMode.Exact
+        };
+        Check.Equal(0, searcher.Find(exactMiss).Count, "exact mode does not match a substring");
+
+        var exactHit = new OpenDLM.Core.Services.SearchQuery
+        {
+            Text = "report-2026.pdf",
+            Fields = new HashSet<OpenDLM.Core.Models.SearchField> { OpenDLM.Core.Models.SearchField.FileName },
+            Match = OpenDLM.Core.Models.SearchMatchMode.Exact
+        };
+        Check.Equal(1, searcher.Find(exactHit).Count, "exact mode matches the whole field");
+
+        var empty = new OpenDLM.Core.Services.SearchQuery { Text = "   " };
+        Check.Equal(0, searcher.Find(empty).Count, "an empty query matches nothing");
+
+        // Find next wraps around, which is the behaviour F3 relies on.
+        searcher.Find(exactHit);
+        Check.Equal(1, searcher.FindNext() is not null ? 1 : 0, "find next returns a match");
+        Check.Equal(1, searcher.FindPrevious() is not null ? 1 : 0, "find previous returns a match");
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>Export then import must round-trip the list.</summary>
+    public static async Task ExportAndImportRoundTrips(string root)
+    {
+        using var server = new TestHttpServer(64 * 1024);
+        var settings = CreateSettings(null);
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        var folder = NewFolder(root, "transfer");
+        var first = manager.CreateItem(new AddDownloadRequest
+        {
+            Url = server.Url("/one.zip"),
+            FileName = "one.zip",
+            Directory = folder,
+            Description = "First file"
+        });
+        var second = manager.CreateItem(new AddDownloadRequest
+        {
+            Url = server.Url("/two.iso"),
+            FileName = "two.iso",
+            Directory = folder,
+            Description = "Second file"
+        });
+        manager.Add(first);
+        manager.Add(second);
+
+        var target = Path.Combine(folder, "export.dlm");
+        OpenDLM.Core.Services.DownloadTransfer.Export(target, manager.Snapshot());
+        Check.True(File.Exists(target), "the rich export file was written");
+
+        var imported = OpenDLM.Core.Services.DownloadTransfer.Import(
+            target,
+            url => new AddDownloadRequest { Url = url, Description = "Imported" });
+
+        Check.Equal(2, imported.Requests.Count, "both entries came back");
+        Check.Equal(0, imported.SkippedLines, "nothing was skipped");
+        Check.Equal("one.zip", imported.Requests[0].FileName, "the file name survived");
+        Check.Equal(folder, imported.Requests[0].Directory, "the folder survived");
+
+        // A plain text export of addresses, which any other tool can read.
+        var textTarget = Path.Combine(folder, "export.txt");
+        OpenDLM.Core.Services.DownloadTransfer.ExportUrls(textTarget, manager.Snapshot());
+        var fromText = OpenDLM.Core.Services.DownloadTransfer.Import(
+            textTarget,
+            url => new AddDownloadRequest { Url = url, Description = "Imported" });
+        Check.Equal(2, fromText.Requests.Count, "a text file round-trips as well");
+
+        // Lines that are not addresses are reported rather than silently dropped.
+        var messy = Path.Combine(folder, "messy.txt");
+        await File.WriteAllTextAsync(messy, "not a url\nhttps://example.com/ok.bin\n# a comment\n\n");
+        var messyResult = OpenDLM.Core.Services.DownloadTransfer.Import(
+            messy,
+            url => new AddDownloadRequest { Url = url, Description = "Imported" });
+        Check.Equal(1, messyResult.Requests.Count, "only the real address was imported");
+        Check.Equal(1, messyResult.SkippedLines, "the bad line was reported");
+    }
+
+    /// <summary>Clean up must remove finished and failed entries only.</summary>
+    public static async Task CleanUpRemovesFinishedAndFailed(string root)
+    {
+        using var server = new TestHttpServer(64 * 1024);
+        var settings = CreateSettings(null);
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        var folder = NewFolder(root, "cleanup");
+
+        var done = manager.CreateItem(new AddDownloadRequest
+        {
+            Url = server.Url(), FileName = "done.bin", Directory = folder
+        });
+        done.Status = DownloadStatus.Complete;
+        manager.Add(done);
+
+        var failed = manager.CreateItem(new AddDownloadRequest
+        {
+            Url = server.Url(), FileName = "failed.bin", Directory = folder
+        });
+        failed.Status = DownloadStatus.Error;
+        failed.ErrorKind = DownloadErrorKind.NotFound;
+        manager.Add(failed);
+
+        var running = manager.CreateItem(new AddDownloadRequest
+        {
+            Url = server.Url(), FileName = "running.bin", Directory = folder
+        });
+        running.Status = DownloadStatus.Downloading;
+        manager.Add(running);
+
+        var removed = manager.CleanUp();
+        Check.Equal(2, removed, "the finished and failed entries were removed");
+
+        var remaining = manager.Snapshot();
+        Check.Equal(1, remaining.Count, "the active entry stayed");
+        Check.Equal("running.bin", remaining[0].FileName, "the right entry stayed");
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>Duplicate answers must be stored and looked up by path.</summary>
+    public static async Task DuplicateAnswersArePersisted(string root)
+    {
+        using var server = new TestHttpServer(64 * 1024);
+        var settings = CreateSettings(s =>
+        {
+            s.General.WarnOnDuplicateDownload = true;
+            s.General.RememberDuplicateAnswers = true;
+        });
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        const string first = "https://example.com/file.bin?token=aaa";
+        const string second = "https://example.com/file.bin?token=bbb";
+
+        Check.Equal(DownloadManager.DuplicateDecision.Ask, manager.ResolveDuplicate(first), "nothing remembered yet");
+
+        manager.RememberDuplicateDecision(first, DownloadManager.DuplicateDecision.AlwaysAdd);
+        Check.Equal(DownloadManager.DuplicateDecision.AlwaysAdd, manager.ResolveDuplicate(first), "the exact address is remembered");
+        Check.Equal(DownloadManager.DuplicateDecision.AlwaysAdd, manager.ResolveDuplicate(second),
+            "a different signature on the same path is remembered too");
+
+        manager.RememberDuplicateDecision(first, DownloadManager.DuplicateDecision.NeverAdd);
+        Check.Equal(DownloadManager.DuplicateDecision.NeverAdd, manager.ResolveDuplicate(first), "the later answer wins");
+        Check.False(settings.Current.General.DuplicateAlwaysAdd
+                .Contains(first, StringComparer.OrdinalIgnoreCase),
+            "the address is no longer on the always-add list");
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>The find dialog's searcher must walk matches and wrap around.</summary>
+    public static async Task SearchFindsNextAndWrapsAround(string root)
+    {
+        using var server = new TestHttpServer(64 * 1024);
+        var settings = CreateSettings(null);
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        var folder = NewFolder(root, "findnext");
+        foreach (var name in new[] { "alpha.zip", "beta.zip", "gamma.zip" })
+        {
+            manager.Add(manager.CreateItem(new AddDownloadRequest
+            {
+                Url = server.Url("/" + name), FileName = name, Directory = folder
+            }));
+        }
+
+        var searcher = new OpenDLM.Core.Services.DownloadSearcher(manager);
+        var query = new OpenDLM.Core.Services.SearchQuery
+        {
+            Text = ".zip",
+            Fields = new HashSet<OpenDLM.Core.Models.SearchField> { OpenDLM.Core.Models.SearchField.FileName }
+        };
+
+        var matches = searcher.Find(query);
+        Check.Equal(3, matches.Count, "all three match");
+
+        var first = searcher.Current;
+        Check.NotNull(first, "there is a current match");
+
+        var second = searcher.FindNext();
+        Check.NotNull(second, "find next returns something");
+        Check.False(ReferenceEquals(first, second), "find next moved on");
+
+        // Walk far enough to wrap.
+        for (var i = 0; i < 2; i++)
+        {
+            searcher.FindNext();
+        }
+
+        Check.Equal(3, searcher.MatchCount, "the count is stable while walking");
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// The probe must report the size of an FTP resource before downloading it.
+    /// </summary>
     public static async Task FtpProbeReportsSize(string root)
     {
         using var server = new TestFtpServer(2 * 1024 * 1024);

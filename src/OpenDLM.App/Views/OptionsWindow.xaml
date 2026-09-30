@@ -470,7 +470,59 @@
                 </Grid>
             </TabItem>
 
-            <!-- ================================================ Per-site rules -->
+            <!-- ====================================================== Sounds -->
+            <TabItem Header="Sounds">
+                <StackPanel Margin="12">
+                    <CheckBox x:Name="SoundsEnabledBox" Content="Play a sound for events" />
+
+                    <TextBlock Text="Sound for each event" Style="{StaticResource Style.SectionHeading}" />
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Starts" VerticalAlignment="Center" />
+                        <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,3" x:Name="StartSoundBox" IsEditable="True" />
+                        <Button Grid.Row="0" Grid.Column="2" Margin="6,3,0,3" Content="Play" Click="OnPlayStartSound" />
+                        <Button Grid.Row="0" Grid.Column="3" Margin="6,3,0,3" Content="..." Click="OnBrowseStartSound" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Finishes" VerticalAlignment="Center" />
+                        <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,3" x:Name="CompleteSoundBox" IsEditable="True" />
+                        <Button Grid.Row="1" Grid.Column="2" Margin="6,3,0,3" Content="Play" Click="OnPlayCompleteSound" />
+                        <Button Grid.Row="1" Grid.Column="3" Margin="6,3,0,3" Content="..." Click="OnBrowseCompleteSound" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Fails" VerticalAlignment="Center" />
+                        <ComboBox Grid.Row="2" Grid.Column="1" Margin="0,3" x:Name="ErrorSoundBox" IsEditable="True" />
+                        <Button Grid.Row="2" Grid.Column="2" Margin="6,3,0,3" Content="Play" Click="OnPlayErrorSound" />
+                        <Button Grid.Row="2" Grid.Column="3" Margin="6,3,0,3" Content="..." Click="OnBrowseErrorSound" />
+                    </Grid>
+
+                    <WrapPanel Margin="0,10,0,0">
+                        <CheckBox x:Name="PlayOnStartBox" Margin="0,0,14,5" Content="When a download starts" />
+                        <CheckBox x:Name="PlayOnCompleteBox" Margin="0,0,14,5" Content="When a download finishes" />
+                        <CheckBox x:Name="PlayOnErrorBox" Margin="0,0,14,5" Content="When a download fails" />
+                    </WrapPanel>
+
+                    <CheckBox x:Name="BalloonOnCompleteBox" Margin="0,5,0,0"
+                              Content="Also show a notification when a download finishes" />
+
+                    <TextBlock Margin="0,10,0,0"
+                               TextWrapping="Wrap"
+                               Style="{StaticResource Style.Muted}"
+                               Text="Sound files are WAV. Use Play to hear a choice before you save it." />
+                </StackPanel>
+            </TabItem>
+
+            <!-- ============================================ Per-site rules -->
             <TabItem Header="Sites">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>

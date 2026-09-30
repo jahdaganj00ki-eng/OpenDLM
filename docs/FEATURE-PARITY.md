@@ -171,89 +171,64 @@ Insert/Delete takeover keys are replaced by the Insert and Delete shortcuts in t
 list; its launcher, update checker and site-specific video grabber are not
 reproduced, because they are proprietary content rather than settings.
 
-## Gaps this comparison found that are not yet closed
+## Gaps this comparison found
 
-Confirmed against the language file and the installed package, listed in rough
-priority order:
+Confirmed against the language file and the installed package. The first block is
+now closed; what remains is listed after it.
 
-- **Dial Up / VPN tab** (ids `21221`, `21222`, `1058`, `1307`-`1313`): a Windows
-  dial-up/VPN connection picker with redial attempts and interval, and the ability
-  to run downloads over it. OpenDLM only has a "hang up" post-download action.
-- **Find dialog** (ids `34040`, `34041`, `1807`-`1812`, `21122`-`21124`): `Ctrl+F`
-  search across file name, description, page name, link, parent page and referer,
-  with partial/exact match, settings, and find-next. OpenDLM has a single filter box.
-- **Export and import** (ids `32809`/`32821`/`32823`, `32816`/`32818`): export the
-  list to an IDM export file or a text file, and import both back.
-- **Language selection UI** (menu id `m32841`): the setting exists in OpenDLM but
-  there is no menu to change it, and only English ships.
-- **Font selection** (ids `m34045`, `34045`, `34046`, `21218`): choose the UI font
-  and reset it.
-- **Toolbar icon styles** (ids `34010`-`34012`, `33510`, `20571`-`20573`): classic,
-  small and large toolbar icon sets.
-- **Main-window sort entries** (ids `32828`-`32840`): sort by added, name, size,
-  status, time left, rate and description. OpenDLM can sort by nine columns but has
-  no explicit "sort by" menu.
-- **"Load now"** (`32773`): start only the first segment immediately.
-- **Catch basket** (`32809` in the Tasks menu): recover interrupted downloads.
-- **Clean up** (`32794`): remove finished and failed entries in one step.
-- **Per-protocol proxy "take from the browser"** (ids `1107`, `1113`, `1141`, plus
-  `1863` "from the system"): adopt the proxy the browser is using.
-- **Use the browser's proxy/SOCKS when a captured download fails** (id `1844`).
-- **Browser integration for Internet Explorer, Netscape and MSN** (ids `1065`,
-  `1068`, `1253`, `1255`, `1256`, `1257`): OpenDLM covers the modern Chromium and
-  Firefox browsers only.
-- **Sounds tab with preview** (ids `1320`, `1172`, `1091`): pick and test an event
-  sound.
-- **Plugins section** in the General tab.
-- **Add to queue instead of starting** as a per-dialog choice (id `1862`).
-- **Find and preview ZIP contents** before downloading (ids `1429`, `1430`, `1405`,
-  `1421`, `1437`; the "Zip preview" dialog at line 333).
-- **Video grabber**: site-aware capture, resolution selection, merging audio and
-  video streams (`21219`, `21130`, `21192`). Proprietary site data; deliberately
-  out of scope.
-- **Tip of the day, update check, registration/licensing** — out of scope by design.
+### Closed since the comparison
 
-## Browser extension, compared file by file
+| Gap | Reference evidence | Where it lives now |
+|---|---|---|
+| Dial Up / VPN tab | `21221`, `21222`, `1058`, `1307`-`1313` | `DialUpManager` enumerates Windows RAS connections, dials with redial attempts and interval, hangs up; `DialUpWindow` edits it and connects live; the scheduler brings the connection up when a queue starts |
+| Find dialog | `34040`, `34041`, `1807`-`1812`, `21122`-`21124` | `FindWindow` (Ctrl+F, F3) over `DownloadSearcher`: file name, description, page, link, parent page, referer, partial or exact, find next and previous |
+| Export and import | `32809`-`32823` | `DownloadTransfer` writes a rich OpenDLM file or a text file of `url<TAB>referer`, and reads either back; wired to the Tasks menu |
+| Language selection | menu `m32841` | A note in the options explains that only English ships; a setting exists, no dead menu |
+| Font selection | `m34045`, `34046`, `21218` | Interface font family, size and a reset button |
+| Toolbar icon styles | `34010`-`34012`, `33510` | Toolbar layout (icons and text / icons only / large) plus an icon size (classic / small / large) |
+| Sort by menu | `32828`-`32840` | View -> Sort by with the reference's seven entries and a reverse-order toggle |
+| "Load now" | `32773` | "Load the first block only" stages the first segment and continues in the background |
+| Catch basket | `32809` | "Recover interrupted downloads" |
+| Clean up | `32794` | "Clean up finished and failed" |
+| Proxy "from the browser" | `1107`, `1113`, `1141`, `1863` | Per-protocol switches; the extension reads Chrome's proxy and the app prefers it for that one download |
+| Browser proxy on failure | `1844` | A setting, honoured when the browser supplied a proxy |
+| Sound tab with preview | `1320`, `1091` | **Still open** |
+| IE / Netscape / MSN integration | `1065`-`1257` | **Out of scope**: those browsers are retired |
+| Plugins section | General tab | **Out of scope** |
+| ZIP preview | dialog at line 333, `1429`, `1430` | **Still open** |
+| Add to queue instead of starting | `1862` | The setting exists; offered per dialog rather than per schedule |
 
-The installed package is a single CRX (`6_43_1_0.crx`, id
-`NGPAMPAPPNMEPGILOJFOHADHHMBHLAEK`, manifest version 6.43.1). Its layout:
+### Extension, compared file by file
 
 | Reference file | Size | OpenDLM |
 |---|---|---|
-| `background.js` | 56 KB | `background.js`, ~23 KB |
-| `content.js` | 29 KB | `content.js` + `content.css` |
+| `background.js` | 56 KB | `background.js`, comparable size |
+| `content.js` | 29 KB | `content.js` + `content.css`, `document_start`, all frames |
 | `document.js` | 5 KB | none |
 | `debug.js` | 693 B | none |
-| `captured.html` / `captured.js` | 1.8 KB / 1 KB | none |
-| `welcome.html` / `welcome.js` | 8.8 KB / 3.2 KB | none |
+| `captured.html` / `captured.js` | 1.8 / 1 KB | none |
+| `welcome.html` / `welcome.js` | 8.8 / 3.2 KB | **added** |
 | `_locales/` | 17 languages | none (English only) |
 | `_metadata/verified_contents.json` | 5.4 KB | n/a (not store-listed) |
 
-Permissions it requests, and whether OpenDLM has them:
+Permissions:
 
-| Reference permission | OpenDLM |
+| Reference | OpenDLM |
 |---|---|
 | `nativeMessaging`, `storage`, `downloads`, `contextMenus`, `scripting`, `tabs`, `cookies` | yes |
-| `webNavigation` | no |
+| `downloads.shelf`, `webNavigation`, `proxy` | **added** |
 | `webRequest`, `declarativeNetRequest` | no |
-| `downloads.shelf`, `downloads.ui` | no |
 | `management` | no |
-| `proxy` | no |
-| optional `notifications`, `system.display` | `notifications` yes, `system.display` no |
-| `host_permissions: <all_urls>` | yes |
-| `externally_connectable` to the vendor's own sites | n/a |
-| `minimum_chrome_version: 109` | not declared |
+| optional `system.display` | no |
+| `host_permissions: <all_urls>`, `minimum_chrome_version: 109` | yes |
 
-User-visible features found in the extension that OpenDLM lacks:
+User-visible features:
 
-- **"Transfer download to"** an in-progress browser download (string `menu_download_item`).
-- **"Download selected links"** (string `menu_download_selected`).
-- **Toolbar button with three states** - normal, `[DISABLED]`, `[ERROR]` - and a
-  click that toggles integration. OpenDLM opens a popup instead.
-- **A first-run welcome page.**
-- **Seventeen localisations.**
-- A dedicated `debug.js` diagnostic mode.
-
-Features both have: link interception with modifier keys, media/video detection,
-"download all links", takeover of browser-started downloads, takeover of
-file types, and native messaging to the application.
+| Reference | OpenDLM |
+|---|---|
+| "Transfer download to" an in-progress browser download | **added** |
+| "Download selected links" | **added** |
+| Toolbar button with normal / `[DISABLED]` / `[ERROR]` states | **added** |
+| First-run welcome page | **added** |
+| Seventeen localisations | not done; only English ships |
+| Link interception with modifier keys, media detection, download all links, takeover of browser downloads, native messaging | yes |

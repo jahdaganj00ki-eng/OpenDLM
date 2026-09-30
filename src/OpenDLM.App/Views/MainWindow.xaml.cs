@@ -248,6 +248,38 @@ public partial class MainWindow : Window
         MenuShowStatusBar.IsChecked = visible;
     }
 
+    /// <summary>
+    /// Shows what is inside the selected archive without extracting it, which also
+    /// works while the file is still downloading.
+    /// </summary>
+    private void OnShowZipPreview(object sender, RoutedEventArgs e)
+    {
+        if (SelectedItem is not { } item)
+        {
+            Dialogs.Info(this, "Select a download first.");
+            return;
+        }
+
+        // Prefer the partial file, so a running download can be inspected.
+        var candidate = File.Exists(item.PartialPath) ? item.PartialPath : item.FullPath;
+
+        if (!File.Exists(candidate))
+        {
+            Dialogs.Info(this, "The file is not on disk yet.");
+            return;
+        }
+
+        if (!item.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
+            !item.FileName.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) &&
+            !item.FileName.EndsWith(".apk", StringComparison.OrdinalIgnoreCase))
+        {
+            Dialogs.Warn(this, "The contents can only be listed for a ZIP archive.");
+            return;
+        }
+
+        new Views.ZipPreviewWindow(candidate) { Owner = this }.Show();
+    }
+
     private void OnToggleCategoryPane(object sender, RoutedEventArgs e)
         => PersistView(settings => settings.ShowCategoryPane = MenuShowCategories.IsChecked);
 

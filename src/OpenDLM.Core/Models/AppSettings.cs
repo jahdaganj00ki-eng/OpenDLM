@@ -643,6 +643,20 @@ public sealed class SoundSettings
     [JsonPropertyName("errorSound")]
     public string ErrorSound { get; set; } = string.Empty;
 
+    /// <summary>Which events play a sound at all, matching the reference's sound tab.</summary>
+    [JsonPropertyName("playOnStart")]
+    public bool PlayOnStart { get; set; } = true;
+
+    [JsonPropertyName("playOnComplete")]
+    public bool PlayOnComplete { get; set; } = true;
+
+    [JsonPropertyName("playOnError")]
+    public bool PlayOnError { get; set; } = true;
+
+    /// <summary>Also raise a tray balloon, as opposed to the sound alone.</summary>
+    [JsonPropertyName("balloonOnComplete")]
+    public bool BalloonOnComplete { get; set; } = true;
+
     /// <summary>Balloon/toast notification when a download finishes.</summary>
     [JsonPropertyName("notifyOnComplete")]
     public bool NotifyOnComplete { get; set; } = true;

@@ -52,6 +52,12 @@ var cases = new List<(string Name, Func<Task> Body)>
     ("Item carries the queue name", () => EngineTests.ItemCarriesTheQueueName(sandbox)),
     ("Site exceptions persist", () => EngineTests.SiteExceptionsPersist(sandbox)),
     ("Duplicate answers are remembered", () => EngineTests.DuplicateAnswersAreRemembered(sandbox)),
+    ("Duplicate answers are persisted", () => EngineTests.DuplicateAnswersArePersisted(sandbox)),
+    ("Search matches the configured fields", () => EngineTests.SearchMatchesConfiguredFields(sandbox)),
+    ("Search finds next and wraps around", () => EngineTests.SearchFindsNextAndWrapsAround(sandbox)),
+    ("Export and import round trip", () => EngineTests.ExportAndImportRoundTrips(sandbox)),
+    ("Clean up removes finished and failed", () => EngineTests.CleanUpRemovesFinishedAndFailed(sandbox)),
+    ("Archive preview lists entries", () => EngineTests.ArchivePreviewListsEntries(sandbox)),
 
     // FTP, with a real passive-mode FTP server on a raw socket.
     ("FTP probe reports size", () => EngineTests.FtpProbeReportsSize(sandbox)),

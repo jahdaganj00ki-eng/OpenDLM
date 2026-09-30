@@ -122,6 +122,55 @@ public partial class OptionsWindow : Window
         FontSizeBox.Text = "12";
     }
 
+    // ------------------------------------------------------------------- sounds
+
+    private void PreviewSound(ComboBox box)
+    {
+        var file = box.Text.Trim();
+        if (file.Length == 0)
+        {
+            Dialogs.Info(this, "Choose a sound file first.");
+            return;
+        }
+
+        try
+        {
+            using var player = new OpenDLM.Core.Services.SoundPlayer(_settingsService);
+            player.PlayFile(file);
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Warn(this, "That sound could not be played:\n" + ex.Message);
+        }
+    }
+
+    private void BrowseSound(ComboBox box)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Choose a sound",
+            Filter = "Sounds (*.wav)|*.wav|All files (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            box.Text = dialog.FileName;
+        }
+    }
+
+    private void OnPlayStartSound(object sender, RoutedEventArgs e) => PreviewSound(StartSoundBox);
+
+    private void OnPlayCompleteSound(object sender, RoutedEventArgs e) => PreviewSound(CompleteSoundBox);
+
+    private void OnPlayErrorSound(object sender, RoutedEventArgs e) => PreviewSound(ErrorSoundBox);
+
+    private void OnBrowseStartSound(object sender, RoutedEventArgs e) => BrowseSound(StartSoundBox);
+
+    private void OnBrowseCompleteSound(object sender, RoutedEventArgs e) => BrowseSound(CompleteSoundBox);
+
+    private void OnBrowseErrorSound(object sender, RoutedEventArgs e) => BrowseSound(ErrorSoundBox);
+
     /// <summary>Reads "Alt+Ctrl" into a set of part names.</summary>
     private static List<string> SplitModifiers(string? value)
         => (value ?? string.Empty)
@@ -526,6 +575,14 @@ public partial class OptionsWindow : Window
         sounds.NotifyOnError = NotifyErrorBox.IsChecked == true;
         sounds.NotifyOnQueueStart = NotifyQueueStartBox.IsChecked == true;
         sounds.NotifyOnQueueFinish = NotifyQueueFinishBox.IsChecked == true;
+        sounds.Enabled = SoundsEnabledBox.IsChecked == true;
+        sounds.PlayOnStart = PlayOnStartBox.IsChecked == true;
+        sounds.PlayOnComplete = PlayOnCompleteBox.IsChecked == true;
+        sounds.PlayOnError = PlayOnErrorBox.IsChecked == true;
+        sounds.BalloonOnComplete = BalloonOnCompleteBox.IsChecked == true;
+        sounds.StartSound = StartSoundBox.Text.Trim();
+        sounds.CompleteSound = CompleteSoundBox.Text.Trim();
+        sounds.ErrorSound = ErrorSoundBox.Text.Trim();
     }
 
     private static int ReadInt(TextBox box, int fallback)
