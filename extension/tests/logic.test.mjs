@@ -204,4 +204,25 @@ check(modifierActive(held({ altKey: true }), 'Alt, Ctrl'), true, 'commas are acc
 check(modifierActive(noneHeld, 'Nonsense'), false, 'an unknown name never matches');
 check(modifierActive(noneHeld, 'Alt+Nonsense'), false, 'an unknown name inside a group creates no match');
 
+// ---------------------------------------------------------------- selected links
+
+// selectionLinks() closes over isWebUrl(), so the two are evaluated together in one
+// scope rather than lifted separately, which would leave the dependency undefined.
+const links = new Function(
+  `"use strict";
+${functionSource(background, 'isWebUrl', 'background.js')}
+${functionSource(background, 'selectionLinks', 'background.js')}
+return (${functionSource(background, 'selectionLinks', 'background.js')});
+`)();
+
+check(links('https://a.example/one.zip and https://b.example/two.iso').length, 2,
+  'links are pulled out of a selection');
+check(links('https://a.example/one.zip').length, 1, 'a single link is found');
+check(links('just some prose, no links at all').length, 0, 'prose yields no links');
+check(links('').length, 0, 'an empty selection yields no links');
+check(links('mailto:someone@example.com').length, 0, 'a mail address is not a download');
+check(links('https://a.example/one.zip, https://a.example/one.zip').length, 1,
+  'a repeated link is only taken once');
+check(links('see https://a.example/one.zip.').length, 1, 'trailing punctuation is trimmed');
+
 console.log(`extension logic: ${assertions} assertions passed`);

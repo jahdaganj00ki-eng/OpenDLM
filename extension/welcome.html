@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Welcome to OpenDLM</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --fg: #1b1f24;
+        --muted: #5f6873;
+        --line: #d9dee5;
+        --accent: #1f6fc4;
+        --card: #f6f8fa;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1e1f22;
+          --fg: #e6e7ea;
+          --muted: #a0a5ad;
+          --line: #3a3d43;
+          --accent: #4c9ee6;
+          --card: #26272b;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 28px 24px 32px;
+        background: var(--bg);
+        color: var(--fg);
+        font: 14px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      main { max-width: 620px; margin: 0 auto; }
+      h1 { font-size: 22px; margin: 0 0 4px; }
+      p.lead { color: var(--muted); margin: 0 0 20px; }
+      section {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+        background: var(--card);
+      }
+      h2 { font-size: 14px; margin: 0 0 8px; }
+      ul { margin: 0; padding-left: 18px; }
+      li { margin: 3px 0; }
+      code {
+        background: rgba(127, 127, 127, 0.16);
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-size: 13px;
+      }
+      .row { display: flex; gap: 10px; align-items: center; margin-top: 18px; }
+      button {
+        font: inherit;
+        padding: 7px 16px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        color: var(--fg);
+        cursor: pointer;
+      }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button:hover { filter: brightness(0.96); }
+      .status { color: var(--muted); font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>OpenDLM is set up</h1>
+      <p class="lead">A free download manager for Windows. No trial, no licence key, nothing to buy.</p>
+
+      <section>
+        <h2>What this extension does</h2>
+        <ul>
+          <li>Hands downloads you start to OpenDLM, which splits them across several connections.</li>
+          <li>Adds OpenDLM entries to the right-click menu, including on selected links and on a download the browser has already begun.</li>
+          <li>Offers to grab detected video and audio.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>If nothing happens</h2>
+        <ul>
+          <li>OpenDLM must be running; this extension hands the work over to it.</li>
+          <li>Hold <code>Shift</code> while clicking a link to keep it in the browser, or <code>Alt</code> to force it into OpenDLM.</li>
+          <li>Check the desktop app under <em>Options -&gt; Browser</em>.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Your settings stay on this machine</h2>
+        <ul>
+          <li>Nothing is sent anywhere except to the OpenDLM application on this computer.</li>
+        </ul>
+      </section>
+
+      <div class="row">
+        <button class="primary" id="start">Get started</button>
+        <button id="options">Open settings</button>
+        <span class="status" id="status"></span>
+      </div>
+    </main>
+
+    <script src="welcome.js"></script>
+  </body>
+</html>

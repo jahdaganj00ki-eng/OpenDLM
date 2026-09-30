@@ -589,6 +589,21 @@ async function createContextMenus() {
     menus.push({ id: 'opendlm-page', title: 'Download all links with OpenDLM', contexts: ['page'] });
   }
 
+  // Handing the selected links only, rather than every link on the page.
+  menus.push({
+    id: 'opendlm-selected',
+    title: 'Download selected links with OpenDLM',
+    contexts: ['selection', 'page'],
+  });
+
+  // Take over a download the browser is already running, so it continues in
+  // OpenDLM instead. The menu only shows up where a download item is present.
+  menus.push({
+    id: 'opendlm-item',
+    title: 'Transfer this download to OpenDLM',
+    contexts: ['download'],
+  });
+
   chrome.contextMenus.removeAll(() => {
     void chrome.runtime.lastError;
 
@@ -743,7 +758,103 @@ async function handleContextMenu(info, tab) {
 
   if (info.menuItemId === 'opendlm-page') {
     await downloadAllLinksOnPage(tab, pageUrl);
+    return;
   }
+
+  if (info.menuItemId === 'opendlm-selected') {
+    await downloadSelection(info, tab, pageUrl);
+    return;
+  }
+
+  if (info.menuItemId === 'opendlm-item') {
+    await transferDownloadItem(info, pageUrl);
+  }
+}
+
+/**
+ * Sends only the links the user actually selected, falling back to the whole page
+ * when the menu was opened without a selection.
+ */
+async function downloadSelection(info, tab, pageUrl) {
+  const selected = selectionLinks(info.selectionText);
+
+  if (selected.length === 0) {
+    await downloadAllLinksOnPage(tab, pageUrl);
+    return;
+  }
+
+  await sendToApp({
+    type: 'addBatch',
+    items: selected.map((entry) => buildAddDownload({
+      url: entry.url,
+      filename: entry.filename,
+      pageUrl,
+      userAgent: currentUserAgent(),
+    })),
+  });
+}
+
+/** Reads the web links out of a text selection, dropping plain prose. */
+function selectionLinks(text) {
+  if (typeof text !== 'string' || text.length === 0) {
+    return [];
+  }
+
+  const found = new Map();
+  const pattern = /\bhttps?:\/\/[^\s<>"']+/gi;
+  let match = pattern.exec(text);
+
+  while (match !== null) {
+    const url = match[0].replace(/[),.;:!?]+$/, '');
+
+    if (isWebUrl(url) && !found.has(url)) {
+      found.set(url, { url, filename: '' });
+    }
+
+    match = pattern.exec(text);
+  }
+
+  return Array.from(found.values());
+}
+
+/**
+ * Moves a download the browser has already started over to OpenDLM: the browser one
+ * is cancelled and erased, and the same address is handed over so it continues here.
+ */
+async function transferDownloadItem(info, pageUrl) {
+  const itemId = typeof info.downloadItemId === 'number' ? info.downloadItemId : null;
+
+  if (itemId === null) {
+    return;
+  }
+
+  const settings = await getSettings();
+  if (!settings.enabled) {
+    return;
+  }
+
+  let found;
+  try {
+    [found] = await chrome.downloads.search({ id: itemId });
+  } catch (error) {
+    return;
+  }
+
+  if (!found || !isWebUrl(found.url)) {
+    return;
+  }
+
+  await chrome.downloads.cancel(itemId);
+  await chrome.downloads.erase({ id: itemId });
+
+  await sendToApp(buildAddDownload({
+    url: found.url,
+    filename: found.filename || '',
+    mimeType: found.mime || '',
+    totalBytes: found.totalBytes >= 0 ? found.totalBytes : 0,
+    pageUrl,
+    userAgent: currentUserAgent(),
+  }));
 }
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -905,9 +1016,30 @@ async function seedDefaults() {
   }
 }
 
+/** Opens the first-run page, once, in a tab of its own. */
+async function maybeOpenWelcome(reason) {
+  if (reason !== 'install') {
+    return;
+  }
+
+  try {
+    const stored = await chrome.storage.local.get('welcomeShown');
+    if (stored && stored.welcomeShown) {
+      return;
+    }
+
+    await chrome.storage.local.set({ welcomeShown: Date.now() });
+    await chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+  } catch (error) {
+    // Non-fatal: the page is a convenience, not a requirement.
+  }
+}
+
 chrome.runtime.onInstalled.addListener((details) => {
   scheduleContextMenus(true);
   seedDefaults().catch(() => {});
+  maybeOpenWelcome(details && details.reason).catch(() => {});
+
   if (details && details.reason === 'update') {
     // A stale "host missing" flag would hide a genuine problem after an update.
     sessionSet('hostNotice', null).catch(() => {});
