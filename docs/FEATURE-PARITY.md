@@ -46,8 +46,8 @@ follow-Windows themes, so this is an addition rather than a parity item.
 | Add to queue by default | engine | Done | `Downloads.AddToQueueByDefault` |
 | Remember last save folder | `RememberLastSave` | Done | `General.RememberLastSave` |
 | Duplicate link warning | `DuplLinksA`, `RememberDuplLinksA` | Partial | Warns each time; the "never ask again for this link" memory is not implemented |
-| FTP transfers | `FtpPasive`, `UseFtpProxy` | **Missing** | OpenDLM is HTTP/HTTPS only today. Passive-mode and FTP proxy settings exist in the model but there is no FTP transfer path |
-| FTP proxy protocol | `nProxyMode` | Partial | The switch exists; without FTP support it has no effect |
+| FTP transfers | `FtpPasive`, `UseFtpProxy` | Done | Probe with `SIZE`, transfer with `RETR`, resume with restart markers. Always a single connection, because restarting several streams over one control channel is not something servers agree on |
+| FTP proxy protocol | `nProxyMode` | Done | The per-protocol switch and the proxy decision apply to FTP as well |
 
 ## Per-site rules
 
@@ -83,8 +83,8 @@ follow-Windows themes, so this is an addition rather than a parity item.
 | SOCKS 4 / 5 | `UseSocks`, `SocksType` | Done | `socks4://` / `socks5://` URI, chosen by the setting |
 | SOCKS 5 resolves names | `Socks5ProxyDNS` | Partial | .NET always sends the host name to a `socks5` proxy, so the flag is recorded but not independently switchable |
 | SOCKS over DNS also for HTTP proxy | `Socks5ProxyDNS` | N/A | Not applicable outside SOCKS |
-| PAC script | `ProxyPac`, `WBProxy` | Partial | The **system** PAC is honoured through the system proxy mode. A **custom** PAC URL is not evaluated — PAC evaluation would require embedding a JavaScript engine |
-| Passive FTP | `FtpPasive` | N/A | No FTP path yet |
+| PAC script | `ProxyPac`, `WBProxy` | Done | The automatic mode evaluates a configured script per destination through Windows' own `WinHttpGetProxyForUrl`, so every PAC feature works, including per-host routing and `DIRECT`. With no script configured, the system PAC is used |
+| Passive FTP | `FtpPasive` | Done | Used by every FTP transfer, with automatic fallback to a full restart when a server ignores restart markers |
 
 ## Interface
 
@@ -159,6 +159,6 @@ the full options surface, and the browser extension with its own settings vocabu
 site-specific video grabber, licence activation, third-party help files and
 translations.
 
-**Known gaps:** FTP transfer path, custom PAC URL evaluation, independent force/prevent
-modifier pairs, per-browser context-menu toggles, and the "never ask again" memory for
-duplicate links.
+**Known gaps:** individually toggling every browser context-menu entry (OpenDLM has
+one switch for the OpenDLM entries rather than one per action and per browser), and
+remembering the user's answer to a duplicate-link prompt.
