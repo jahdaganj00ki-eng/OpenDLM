@@ -378,7 +378,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void ExportDownloads()
     {
-        var items = Snapshot();
+        var items = Items.ToList();
         if (items.Count == 0)
         {
             Dialogs.Info(Application.Current?.MainWindow, "There is nothing to export.");
