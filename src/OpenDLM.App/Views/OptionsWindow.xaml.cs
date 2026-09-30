@@ -104,6 +104,17 @@ public partial class OptionsWindow : Window
         {
             SocksTypeBox.Items.Add(value);
         }
+
+        foreach (var value in Enum.GetValues<ToolbarIconSize>())
+        {
+            ToolbarIconSizeBox.Items.Add(value);
+        }
+    }
+
+    private void OnResetFont(object sender, RoutedEventArgs e)
+    {
+        FontFamilyBox.Clear();
+        FontSizeBox.Text = "12";
     }
 
     /// <summary>Reads "Alt+Ctrl" into a set of part names.</summary>
@@ -228,6 +239,11 @@ public partial class OptionsWindow : Window
         SocksDnsBox.IsChecked = connection.Socks5ProxyDns;
         SelectEnum(SocksTypeBox, connection.SocksType);
         PacUrlBox.Text = connection.ProxyPacUrl;
+        ProxyFromBrowserHttpBox.IsChecked = connection.TakeHttpProxyFromBrowser;
+        ProxyFromBrowserHttpsBox.IsChecked = connection.TakeHttpsProxyFromBrowser;
+        ProxyFromBrowserFtpBox.IsChecked = connection.TakeFtpProxyFromBrowser;
+        UseBrowserProxyOnFailureBox.IsChecked = connection.UseBrowserProxyOnFailure;
+        MicrosoftTls13Box.IsChecked = connection.UseMicrosoftTls13;
         ProxyExceptionsBox.Text = string.Join(Environment.NewLine,
             connection.ProxyExceptions ?? new List<string>());
 
@@ -442,6 +458,12 @@ public partial class OptionsWindow : Window
         connection.SocksType = ReadEnum(SocksTypeBox, SocksType.None);
         connection.Socks5ProxyDns = SocksDnsBox.IsChecked == true;
         connection.ProxyPacUrl = PacUrlBox.Text.Trim();
+        connection.TakeHttpProxyFromBrowser = ProxyFromBrowserHttpBox.IsChecked == true;
+        connection.TakeHttpsProxyFromBrowser = ProxyFromBrowserHttpsBox.IsChecked == true;
+        connection.TakeFtpProxyFromBrowser = ProxyFromBrowserFtpBox.IsChecked == true;
+        connection.UseBrowserProxyOnFailure = UseBrowserProxyOnFailureBox.IsChecked == true;
+        connection.UseMicrosoftTls13 = MicrosoftTls13Box.IsChecked == true;
+        connection.ProxyPacUrl = PacUrlBox.Text.Trim();
         connection.ProxyExceptions = SplitLines(ProxyExceptionsBox.Text);
 
         var browser = _working.BrowserIntegration;
@@ -469,6 +491,22 @@ public partial class OptionsWindow : Window
         ui.ShowToolbar = ShowToolbarBox.IsChecked == true;
         ui.ShowStatusBar = ShowStatusBarBox.IsChecked == true;
         ui.ToolbarStyle = ReadEnum(ToolbarStyleBox, ToolbarStyle.IconsAndText);
+        SelectEnum(ToolbarIconSizeBox, _working.ToolbarIcons.Size);
+        FontFamilyBox.Text = _working.UiFont.Family;
+        FontSizeBox.Text = _working.UiFont.Size.ToString(CultureInfo.InvariantCulture);
+
+        _working.UiFont.Family = FontFamilyBox.Text.Trim();
+        _working.UiFont.Size = ReadDouble(FontSizeBox, 12);
+        _working.UiFont.Bold = false;
+
+        _working.Search.Match = SearchMatchMode.Partial;
+        _working.Search.WrapAround = true;
+        _working.SearchFields = new SearchFieldSettings
+        {
+            SearchFileName = true,
+            SearchDescription = true,
+            PartialMatch = true
+        };
         ui.RefreshIntervalMs = ReadInt(RefreshIntervalBox, 500);
 
         var advanced = _working.Advanced;
@@ -487,6 +525,11 @@ public partial class OptionsWindow : Window
 
     private static int ReadInt(TextBox box, int fallback)
         => int.TryParse(box.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : fallback;
+
+    private static double ReadDouble(TextBox box, double fallback)
+        => double.TryParse(box.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
             ? value
             : fallback;
 
