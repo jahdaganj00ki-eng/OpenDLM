@@ -56,13 +56,12 @@ function objectSource(source, name, label) {
 }
 
 /**
- * Evaluates a definition, with any extra names it needs in scope.
- * A function declaration is a valid expression once parenthesised, and so is an
- * object literal, so both go through the same path.
+ * Evaluates a self-contained definition. A function declaration is a valid
+ * expression once parenthesised, and so is an object literal.
  */
-function build(text, extraNames = []) {
+function build(text) {
   // eslint-disable-next-line no-new-func
-  return new Function(...extraNames, `"use strict"; return (${text});`)();
+  return new Function(`"use strict"; return (${text});`)();
 }
 
 /** The service worker runs in a browser, where detectBrowser() reads the user agent. */
@@ -89,10 +88,18 @@ function withUserAgent(userAgent, body) {
 
 const defaults = build(objectSource(background, 'DEFAULT_MENU_SELECTION', 'background.js'));
 const detectBrowser = build(functionSource(background, 'detectBrowser', 'background.js'));
-const selectMenus = build(functionSource(background, 'selectMenus', 'background.js'), [
-  'DEFAULT_MENU_SELECTION',
-  'detectBrowser',
-]);
+
+/*
+ * A function lifted out of a file cannot see that file's other declarations, and
+ * new Function() only takes parameter names - passing a name would leave the value
+ * undefined. The dependencies are therefore inlined as source ahead of the
+ * definition, so the lifted function runs against exactly what it ships with.
+ */
+const selectMenus = new Function(`"use strict";
+const DEFAULT_MENU_SELECTION = ${objectSource(background, 'DEFAULT_MENU_SELECTION', 'background.js')};
+${functionSource(background, 'detectBrowser', 'background.js')}
+return (${functionSource(background, 'selectMenus', 'background.js')});
+`)();
 
 // The fallback used when the desktop app cannot be reached.
 check(defaults, { downloadWith: true, downloadAll: true, media: true }, 'the host default offers all three');
