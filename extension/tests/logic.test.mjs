@@ -55,7 +55,11 @@ function objectSource(source, name, label) {
   return `{${match[1]}}`;
 }
 
-/** Evaluates a definition, with any extra names it needs in scope. */
+/**
+ * Evaluates a definition, with any extra names it needs in scope.
+ * A function declaration is a valid expression once parenthesised, and so is an
+ * object literal, so both go through the same path.
+ */
 function build(text, extraNames = []) {
   // eslint-disable-next-line no-new-func
   return new Function(...extraNames, `"use strict"; return (${text});`)();
@@ -83,7 +87,7 @@ function withUserAgent(userAgent, body) {
 
 // ------------------------------------------------------------------ context menus
 
-const defaults = build(`return ${objectSource(background, 'DEFAULT_MENU_SELECTION', 'background.js')};`);
+const defaults = build(objectSource(background, 'DEFAULT_MENU_SELECTION', 'background.js'));
 const detectBrowser = build(functionSource(background, 'detectBrowser', 'background.js'));
 const selectMenus = build(functionSource(background, 'selectMenus', 'background.js'), [
   'DEFAULT_MENU_SELECTION',
