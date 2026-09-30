@@ -74,13 +74,19 @@ jobs:
           dotnet publish src/OpenDLM.NativeHost/OpenDLM.NativeHost.csproj -c Release -r win-x64 --self-contained false `
             -p:Version=${{ steps.version.outputs.version }} -o artifacts/framework-dependent
 
+      # The repository deliberately clears every NuGet source so that a normal build
+      # needs no network at all. A self-contained publish is the one thing that does
+      # need the runtime packs (Microsoft.NETCore.App.Runtime.win-x64 and friends),
+      # so this step alone opts back in to nuget.org. Nothing else in the project
+      # has a package reference, so this can only ever fetch runtime packs.
       - name: Publish the self-contained build
         shell: pwsh
         run: |
+          $source = "https://api.nuget.org/v3/index.json"
           dotnet publish src/OpenDLM.App/OpenDLM.App.csproj -c Release -r win-x64 --self-contained true `
-            -p:Version=${{ steps.version.outputs.version }} -o artifacts/self-contained
+            --source $source -p:Version=${{ steps.version.outputs.version }} -o artifacts/self-contained
           dotnet publish src/OpenDLM.NativeHost/OpenDLM.NativeHost.csproj -c Release -r win-x64 --self-contained true `
-            -p:Version=${{ steps.version.outputs.version }} -o artifacts/self-contained
+            --source $source -p:Version=${{ steps.version.outputs.version }} -o artifacts/self-contained
 
       - name: Add the extension and scripts to both flavours
         shell: pwsh
