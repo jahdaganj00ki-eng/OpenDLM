@@ -254,7 +254,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnShowZipPreview(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem is not { } item)
+        if (_viewModel.SelectedItem is not { } item)
         {
             Dialogs.Info(this, "Select a download first.");
             return;
