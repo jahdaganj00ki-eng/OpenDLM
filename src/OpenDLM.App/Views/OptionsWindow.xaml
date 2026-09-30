@@ -46,6 +46,7 @@
                         <TextBlock Text="Downloads" Style="{StaticResource Style.SectionHeading}" />
                         <CheckBox x:Name="CaptureDownloadsBox" Content="Take over downloads from the browser" />
                         <CheckBox x:Name="WarnDuplicateBox" Margin="0,5,0,0" Content="Warn when the same link is added a second time" />
+                        <CheckBox x:Name="RememberDuplicateBox" Margin="0,5,0,0" Content="Remember that answer for the address" />
                         <CheckBox x:Name="ClipboardBox" Margin="0,5,0,0" Content="Watch the clipboard for download links" />
 
                         <TextBlock Text="Dialogs" Style="{StaticResource Style.SectionHeading}" />

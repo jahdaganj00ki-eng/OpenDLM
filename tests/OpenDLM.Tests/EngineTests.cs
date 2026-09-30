@@ -563,6 +563,56 @@ public static class EngineTests
         await Task.CompletedTask;
     }
 
+    /// <summary>
+    /// A remembered answer must replace the prompt for that address, and must never
+    /// leave the same address on both lists at once.
+    /// </summary>
+    public static async Task DuplicateAnswersAreRemembered(string root)
+    {
+        using var server = new TestHttpServer(64 * 1024);
+        var settings = CreateSettings(s =>
+        {
+            s.General.WarnOnDuplicateDownload = true;
+            s.General.RememberDuplicateAnswers = true;
+        });
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        const string url = "https://example.com/shared.bin?token=abc";
+
+        // Nothing remembered yet, so the user is asked.
+        Check.Equal(DownloadManager.DuplicateDecision.Ask, manager.ResolveDuplicate(url),
+            "an unremembered address is asked about");
+
+        manager.RememberDuplicateDecision(url, DownloadManager.DuplicateDecision.AlwaysAdd);
+        Check.Equal(DownloadManager.DuplicateDecision.AlwaysAdd, manager.ResolveDuplicate(url),
+            "a remembered 'always add' is used without asking");
+
+        // A signed URL is matched by its path once the user has answered for it.
+        Check.Equal(DownloadManager.DuplicateDecision.AlwaysAdd,
+            manager.ResolveDuplicate("https://example.com/shared.bin?token=xyz"),
+            "a different signature on the same path is still recognised");
+
+        manager.RememberDuplicateDecision(url, DownloadManager.DuplicateDecision.NeverAdd);
+        Check.Equal(DownloadManager.DuplicateDecision.NeverAdd, manager.ResolveDuplicate(url),
+            "the later answer replaces the earlier one");
+
+        Check.False(settings.Current.General.DuplicateAlwaysAdd
+                .Contains(url, StringComparer.OrdinalIgnoreCase),
+            "the address is not on both lists at once");
+
+        // With remembering off, the prompt always comes back.
+        settings.Update(s => s.General.RememberDuplicateAnswers = false);
+        Check.Equal(DownloadManager.DuplicateDecision.Ask, manager.ResolveDuplicate(url),
+            "with remembering off the user is asked again");
+
+        // With warning off entirely, a duplicate is simply added.
+        settings.Update(s => s.General.WarnOnDuplicateDownload = false);
+        Check.Equal(DownloadManager.DuplicateDecision.AlwaysAdd, manager.ResolveDuplicate(url),
+            "with the warning off a duplicate is added silently");
+
+        await Task.CompletedTask;
+    }
+
     /// <summary>The probe must report the size of an FTP resource before downloading it.</summary>
     public static async Task FtpProbeReportsSize(string root)
     {

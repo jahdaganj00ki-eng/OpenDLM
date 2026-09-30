@@ -161,6 +161,8 @@ public partial class OptionsWindow : Window
         var general = _working.General;
         CaptureDownloadsBox.IsChecked = general.CaptureDownloads;
         WarnDuplicateBox.IsChecked = general.WarnOnDuplicateDownload;
+        RememberDuplicateBox.IsChecked = general.RememberDuplicateAnswers;
+        RememberDuplicateBox.IsEnabled = general.WarnOnDuplicateDownload;
         ClipboardBox.IsChecked = general.ClipboardMonitoring;
         ShowStartBox.IsChecked = general.ShowStartDialog;
         ShowCompleteBox.IsChecked = general.ShowCompleteDialog;
@@ -368,6 +370,8 @@ public partial class OptionsWindow : Window
         var general = _working.General;
         general.CaptureDownloads = CaptureDownloadsBox.IsChecked == true;
         general.WarnOnDuplicateDownload = WarnDuplicateBox.IsChecked == true;
+        general.RememberDuplicateAnswers =
+            general.WarnOnDuplicateDownload && RememberDuplicateBox.IsChecked == true;
         general.ClipboardMonitoring = ClipboardBox.IsChecked == true;
         general.ShowStartDialog = ShowStartBox.IsChecked == true;
         general.ShowCompleteDialog = ShowCompleteBox.IsChecked == true;

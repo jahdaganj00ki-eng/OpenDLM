@@ -260,6 +260,13 @@ public partial class App : Application
             window.Close();
         });
 
+        Check("duplicate prompt dialog", () =>
+        {
+            var window = new DuplicatePromptWindow("https://example.com/a.zip", "Complete", true) { Owner = null };
+            window.Show();
+            window.Close();
+        });
+
         Check("progress and complete dialogs", () =>
         {
             var item = engine.CreateItem(new AddDownloadRequest

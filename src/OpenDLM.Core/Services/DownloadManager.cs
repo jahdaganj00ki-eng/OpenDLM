@@ -634,6 +634,99 @@ public sealed class DownloadManager : IDisposable
         }
     }
 
+    /// <summary>What the user decided about a link that is already in the list.</summary>
+    public enum DuplicateDecision
+    {
+        /// <summary>Ask, because nothing has been remembered for this address.</summary>
+        Ask = 0,
+
+        /// <summary>Add it anyway, because the user said to always add this one.</summary>
+        AlwaysAdd = 1,
+
+        /// <summary>Skip it, because the user said never to add this one again.</summary>
+        NeverAdd = 2
+    }
+
+    /// <summary>
+    /// Resolves what to do when an address is already in the list: ask, or act on an
+    /// answer the user gave earlier.
+    /// </summary>
+    public DuplicateDecision ResolveDuplicate(string url)
+    {
+        var general = _settingsService.Current.General;
+
+        if (!general.WarnOnDuplicateDownload)
+        {
+            return DuplicateDecision.AlwaysAdd;
+        }
+
+        if (!general.RememberDuplicateAnswers)
+        {
+            return DuplicateDecision.Ask;
+        }
+
+        // Exact match first, then a prefix so a signed URL is still recognised by
+        // its path once the user has answered for it.
+        var candidates = new[] { url };
+        var questionMark = url.IndexOf('?');
+        if (questionMark > 0)
+        {
+            candidates = new[] { url, url[..questionMark] };
+        }
+
+        lock (_itemsGate)
+        {
+            if (candidates.Any(value => general.DuplicateNeverAdd
+                    .Contains(value, StringComparer.OrdinalIgnoreCase)))
+            {
+                return DuplicateDecision.NeverAdd;
+            }
+
+            if (candidates.Any(value => general.DuplicateAlwaysAdd
+                    .Contains(value, StringComparer.OrdinalIgnoreCase)))
+            {
+                return DuplicateDecision.AlwaysAdd;
+            }
+        }
+
+        return DuplicateDecision.Ask;
+    }
+
+    /// <summary>Stores the user's answer for a duplicate address, if remembering is on.</summary>
+    public void RememberDuplicateDecision(string url, DuplicateDecision decision)
+    {
+        var general = _settingsService.Current.General;
+
+        if (!general.RememberDuplicateAnswers || decision == DuplicateDecision.Ask)
+        {
+            return;
+        }
+
+        var store = decision == DuplicateDecision.AlwaysAdd
+            ? general.DuplicateAlwaysAdd
+            : general.DuplicateNeverAdd;
+
+        var other = decision == DuplicateDecision.AlwaysAdd
+            ? general.DuplicateNeverAdd
+            : general.DuplicateAlwaysAdd;
+
+        lock (_itemsGate)
+        {
+            foreach (var value in new[] { url })
+            {
+                if (!store.Contains(value, StringComparer.OrdinalIgnoreCase))
+                {
+                    store.Add(value);
+                }
+            }
+
+            // An address cannot be on both lists.
+            other.RemoveAll(value => string.Equals(value, url, StringComparison.OrdinalIgnoreCase));
+        }
+
+        _settingsService.Save();
+    }
+
     public bool HasCompleteItemFor(string fullPath)
     {
         lock (_itemsGate)

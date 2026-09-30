@@ -167,6 +167,21 @@ public sealed class GeneralSettings
     [JsonPropertyName("warnOnDuplicateDownload")]
     public bool WarnOnDuplicateDownload { get; set; } = true;
 
+    /// <summary>
+    /// Remember the answer given to a duplicate-link prompt, so the same address is
+    /// not asked about a second time.
+    /// </summary>
+    [JsonPropertyName("rememberDuplicateAnswers")]
+    public bool RememberDuplicateAnswers { get; set; }
+
+    /// <summary>Addresses the user chose to always add, even when already present.</summary>
+    [JsonPropertyName("duplicateAlwaysAdd")]
+    public List<string> DuplicateAlwaysAdd { get; set; } = new();
+
+    /// <summary>Addresses the user chose never to add again.</summary>
+    [JsonPropertyName("duplicateNeverAdd")]
+    public List<string> DuplicateNeverAdd { get; set; } = new();
+
     /// <summary>Honour the "force takeover" key while clicking a link.</summary>
     [JsonPropertyName("enableForceKey")]
     public bool EnableForceKey { get; set; } = true;

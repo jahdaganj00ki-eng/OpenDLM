@@ -120,6 +120,34 @@ public partial class AddUrlWindow : Window
         ConnectionsBox.SelectedItem = new[] { 1, 2, 4, 8, 16, 32 }.Contains(configured) ? configured : 8;
     }
 
+    /// <summary>
+    /// Asks about a link that is already in the list. Returns the decision, and
+    /// whether the user asked to remember it. Null means the dialog was dismissed,
+    /// which is treated as "do not add" and never remembered.
+    /// </summary>
+    private (bool Add, bool Remember)? ShowDuplicatePrompt(
+        Core.Models.DownloadItem existing, string url)
+    {
+        var owner = Application.Current?.ActiveWindow is { IsLoaded: true } active ? active : this;
+
+        var dialog = new DuplicatePromptWindow(
+            Fmt.Ellipsis(url, 160),
+            existing.StatusText,
+            _settingsService.Current.General.RememberDuplicateAnswers)
+        {
+            Owner = owner
+        };
+
+        var result = dialog.ShowDialog();
+
+        return result switch
+        {
+            true => (Add: true, Remember: dialog.ShouldRemember),
+            false => (Add: false, Remember: dialog.ShouldRemember),
+            _ => null
+        };
+    }
+
     private void OnBrowse(object sender, RoutedEventArgs e)
     {
         var chosen = Dialogs.PickFolder(DirectoryBox.Text, "Where should OpenDLM save this file?");
@@ -208,11 +236,36 @@ public partial class AddUrlWindow : Window
 
             if (existing is not null)
             {
-                var again = Dialogs.ConfirmYesNo(this,
-                    "This address is already in the list:\n\n" +
-                    $"{Fmt.Ellipsis(url, 120)}\n\n" +
-                    $"Its current state is \"{existing.StatusText}\". Add it a second time?");
-                if (!again)
+                // A remembered answer replaces the prompt; otherwise ask, and offer
+                // to remember the answer so the same address is not asked about again.
+                var decision = _manager.ResolveDuplicate(url);
+                var proceed = true;
+
+                if (decision == DownloadManager.DuplicateDecision.NeverAdd)
+                {
+                    continue;
+                }
+
+                if (decision == DownloadManager.DuplicateDecision.Ask)
+                {
+                    var answer = ShowDuplicatePrompt(existing, url);
+                    if (answer is null)
+                    {
+                        // Dismissed: do not add, and remember nothing.
+                        continue;
+                    }
+
+                    proceed = answer.Value.Add;
+
+                    if (answer.Value.Remember)
+                    {
+                        _manager.RememberDuplicateDecision(url, answer.Value.Add
+                            ? DownloadManager.DuplicateDecision.AlwaysAdd
+                            : DownloadManager.DuplicateDecision.NeverAdd);
+                    }
+                }
+
+                if (!proceed)
                 {
                     continue;
                 }

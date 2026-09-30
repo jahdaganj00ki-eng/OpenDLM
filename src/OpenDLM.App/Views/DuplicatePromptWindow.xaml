@@ -1,0 +1,36 @@
+<Window x:Class="OpenDLM.App.Views.DuplicatePromptWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="This address is already in the list"
+        Width="520"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource Brush.Window}"
+        Foreground="{DynamicResource Brush.Text}"
+        FontSize="{DynamicResource Size.FontNormal}">
+
+    <StackPanel Margin="16">
+        <TextBlock x:Name="IntroText" TextWrapping="Wrap" />
+
+        <Border Margin="0,12,0,0"
+                Padding="8"
+                Background="{DynamicResource Brush.PanelAlt}"
+                BorderBrush="{DynamicResource Brush.Border}"
+                BorderThickness="1"
+                CornerRadius="3">
+            <TextBlock x:Name="DetailText" TextWrapping="Wrap" Style="{StaticResource Style.Muted}" />
+        </Border>
+
+        <CheckBox x:Name="RememberBox"
+                  Margin="0,14,0,0"
+                  Content="Remember this choice for this address"
+                  IsChecked="True" />
+
+        <StackPanel Margin="0,16,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="AddButton" Content="Add it anyway" MinWidth="120" IsDefault="True" Click="OnAdd" />
+            <Button Content="Do not add" MinWidth="110" Margin="8,0,0,0" IsCancel="True" Click="OnSkip" />
+        </StackPanel>
+    </StackPanel>
+</Window>

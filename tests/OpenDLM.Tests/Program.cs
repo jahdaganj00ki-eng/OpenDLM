@@ -51,6 +51,7 @@ var cases = new List<(string Name, Func<Task> Body)>
     ("Per-type folder overrides the category folder", () => EngineTests.PerTypeFolderOverridesTheCategoryFolder(sandbox)),
     ("Item carries the queue name", () => EngineTests.ItemCarriesTheQueueName(sandbox)),
     ("Site exceptions persist", () => EngineTests.SiteExceptionsPersist(sandbox)),
+    ("Duplicate answers are remembered", () => EngineTests.DuplicateAnswersAreRemembered(sandbox)),
 
     // FTP, with a real passive-mode FTP server on a raw socket.
     ("FTP probe reports size", () => EngineTests.FtpProbeReportsSize(sandbox)),
