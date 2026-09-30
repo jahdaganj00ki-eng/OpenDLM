@@ -289,6 +289,21 @@ public partial class App : Application
             complete.Close();
         });
 
+        Check("find dialog", () =>
+        {
+            var searcher = new OpenDLM.Core.Services.DownloadSearcher(engine);
+            var window = new FindWindow(searcher, new OpenDLM.Core.Models.SearchSettings()) { Owner = null };
+            window.Show();
+            window.Close();
+        });
+
+        Check("dial-up window", () =>
+        {
+            var window = new DialUpWindow(new OpenDLM.Core.Models.DialUpSettings()) { Owner = null };
+            window.Show();
+            window.Close();
+        });
+
         engine.Dispose();
     }
 

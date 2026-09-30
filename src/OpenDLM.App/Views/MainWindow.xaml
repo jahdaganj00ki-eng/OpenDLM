@@ -23,14 +23,19 @@
             <MenuItem Header="_Tasks">
                 <MenuItem Header="_Add URL..." Command="{Binding AddUrlCommand}" InputGestureText="Ins" />
                 <MenuItem Header="Add all links from a _file..." Command="{Binding AddAllFromFileCommand}" />
+                <MenuItem Header="_Import a list..." Command="{Binding ImportCommand}" />
+                <MenuItem Header="_Export the list..." Command="{Binding ExportCommand}" />
                 <Separator />
                 <MenuItem Header="_Start or resume" Command="{Binding StartCommand}" />
+                <MenuItem Header="Load the _first block only" Command="{Binding LoadNowCommand}" />
                 <MenuItem Header="_Pause" Command="{Binding PauseCommand}" />
                 <MenuItem Header="S_top" Command="{Binding StopCommand}" />
                 <MenuItem Header="_Restart from the beginning" Command="{Binding RestartCommand}" />
                 <Separator />
                 <MenuItem Header="_Remove from list" Command="{Binding RemoveCommand}" InputGestureText="Del" />
                 <MenuItem Header="Remove _finished downloads" Command="{Binding RemoveCompletedCommand}" />
+                <MenuItem Header="Clean up finished and failed" Command="{Binding CleanUpCommand}" />
+                <MenuItem Header="Recover _interrupted downloads" Command="{Binding RecoverCommand}" />
                 <Separator />
                 <MenuItem Header="Start _all" Command="{Binding StartAllCommand}" />
                 <MenuItem Header="Stop a_ll" Command="{Binding StopAllCommand}" />
@@ -39,11 +44,20 @@
             </MenuItem>
 
             <MenuItem Header="_Downloads">
+                <MenuItem Header="Pause all" Command="{Binding PauseCommand}" />
+                <MenuItem Header="Stop all" Command="{Binding StopAllCommand}" />
+                <Separator />
+                <MenuItem Header="Find a _download..." Command="{Binding FindCommand}" InputGestureText="Ctrl+F" />
+                <MenuItem Header="S_cheduler..." Command="{Binding SchedulerCommand}" />
+                <Separator />
                 <MenuItem Header="_Open the file" Command="{Binding OpenFileCommand}" />
                 <MenuItem Header="Open the destination _folder" Command="{Binding OpenFolderCommand}" />
                 <Separator />
                 <MenuItem Header="_Copy the URL" Command="{Binding CopyUrlCommand}" />
                 <MenuItem Header="Show the _log" Command="{Binding ShowLogCommand}" />
+                <Separator />
+                <MenuItem Header="Dial-up / _VPN..." Command="{Binding DialUpCommand}" />
+                <MenuItem Header="_Options..." Command="{Binding OptionsCommand}" />
             </MenuItem>
 
             <MenuItem Header="_View">

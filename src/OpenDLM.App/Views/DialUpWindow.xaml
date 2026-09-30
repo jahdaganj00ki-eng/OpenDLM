@@ -1,0 +1,65 @@
+<Window x:Class="OpenDLM.App.Views.DialUpWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Dial Up / VPN"
+        Width="480"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource Brush.Window}"
+        Foreground="{DynamicResource Brush.Text}"
+        FontSize="{DynamicResource Size.FontNormal}">
+
+    <StackPanel Margin="14">
+        <TextBlock TextWrapping="Wrap" Style="{StaticResource Style.Muted}"
+                   Text="OpenDLM can bring up a Windows dial-up or VPN connection before a scheduled queue starts and hang it up again afterwards, so downloads run over the tunnel." />
+
+        <CheckBox x:Name="EnabledBox" Margin="0,12,0,0" Content="Use a Windows dial-up or VPN connection" />
+
+        <Grid Margin="0,10,0,0" IsEnabled="{Binding EnabledBox.IsChecked}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Connection" VerticalAlignment="Center" />
+            <ComboBox Grid.Row="0" Grid.Column="1" x:Name="ConnectionBox" MinWidth="200" />
+            <Button Grid.Row="0" Grid.Column="2" Margin="8,0,0,0" Content="Refresh" Click="OnRefresh" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,8,0,0" Text="User name" VerticalAlignment="Center" />
+            <TextBox Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" x:Name="UserBox" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,8,0,0" Text="Password" VerticalAlignment="Center" />
+            <PasswordBox Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" x:Name="PasswordInput" />
+        </Grid>
+
+        <CheckBox x:Name="OnlyWhenNeededBox" Margin="0,10,0,0" Content="Only dial when a download is waiting" />
+        <CheckBox x:Name="HangUpBox" Margin="0,5,0,0" Content="Hang up when the queue has drained" />
+
+        <Grid Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="170" />
+                <ColumnDefinition Width="90" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Redial attempts (0 = endless)" VerticalAlignment="Center" />
+            <TextBox Grid.Column="1" Margin="8,0,0,0" x:Name="AttemptsBox" />
+            <TextBlock Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center" Style="{StaticResource Style.Muted}" Text="Seconds between attempts" />
+        </Grid>
+        <TextBox x:Name="IntervalBox" Margin="178,6,0,0" Width="90" HorizontalAlignment="Left" />
+
+        <StackPanel Margin="0,18,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Connect now" MinWidth="110" Click="OnConnectNow" />
+            <Button Content="Disconnect" MinWidth="100" Margin="8,0,0,0" Click="OnDisconnect" />
+            <Button Content="_Save" MinWidth="88" Margin="8,0,0,0" IsDefault="True" Click="OnSave" />
+            <Button Content="Cancel" MinWidth="88" Margin="8,0,0,0" IsCancel="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -1,0 +1,45 @@
+<Window x:Class="OpenDLM.App.Views.FindWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Find a download"
+        Width="470"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource Brush.Window}"
+        Foreground="{DynamicResource Brush.Text}"
+        FontSize="{DynamicResource Size.FontNormal}">
+
+    <StackPanel Margin="14">
+        <TextBlock TextWrapping="Wrap" Style="{StaticResource Style.Muted}"
+                   Text="Search the list by name, description, address, page or referer. Hold Ctrl+F to open this again, and F3 to jump to the next match." />
+
+        <Grid Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="SearchBox" KeyDown="OnSearchKeyDown" />
+            <CheckBox Grid.Column="1" Margin="10,0,0,0" x:Name="MatchModeBox" Content="Exact" VerticalAlignment="Center" />
+        </Grid>
+
+        <TextBlock Margin="0,12,0,2" FontWeight="SemiBold" Text="Search in" />
+        <WrapPanel>
+            <CheckBox x:Name="FieldNameBox" Margin="0,0,14,5" Content="File name" IsChecked="True" />
+            <CheckBox x:Name="FieldDescriptionBox" Margin="0,0,14,5" Content="Description" IsChecked="True" />
+            <CheckBox x:Name="FieldPageBox" Margin="0,0,14,5" Content="Page name" />
+            <CheckBox x:Name="FieldLinkBox" Margin="0,0,14,5" Content="Download link" />
+            <CheckBox x:Name="FieldParentBox" Margin="0,0,14,5" Content="Parent page" />
+            <CheckBox x:Name="FieldRefererBox" Margin="0,0,14,5" Content="Referer" />
+        </WrapPanel>
+
+        <TextBlock x:Name="ResultText" Margin="0,10,0,0" Style="{StaticResource Style.Muted}" />
+
+        <StackPanel Margin="0,16,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Find next" MinWidth="100" Click="OnFindNext" />
+            <Button Content="Find previous" MinWidth="110" Margin="8,0,0,0" Click="OnFindPrevious" />
+            <Button Content="Close" MinWidth="88" Margin="8,0,0,0" IsCancel="True" Click="OnClose" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -571,6 +571,20 @@ public sealed class DialUpSettings
     /// <summary>Windows connections found on this machine, filled in by the options dialog.</summary>
     [JsonPropertyName("availableConnections")]
     public List<string> AvailableConnections { get; set; } = new();
+
+    public DialUpSettings Clone() => new()
+    {
+        Enabled = Enabled,
+        ConnectionName = ConnectionName,
+        UserName = UserName,
+        PasswordProtected = PasswordProtected,
+        Domain = Domain,
+        RedialAttempts = RedialAttempts,
+        RedialIntervalSeconds = RedialIntervalSeconds,
+        DialOnlyWhenNeeded = DialOnlyWhenNeeded,
+        HangUpWhenFinished = HangUpWhenFinished,
+        AvailableConnections = new List<string>(AvailableConnections)
+    };
 }
 
 public sealed class SchedulerSettings

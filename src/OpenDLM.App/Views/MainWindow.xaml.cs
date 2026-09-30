@@ -423,6 +423,18 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
 
+            case Key.F when Keyboard.Modifiers == ModifierKeys.Control:
+                _viewModel.FindCommand.Execute(null);
+                e.Handled = true;
+                break;
+
+            case Key.F3:
+                // The reference steps through matches with F3; ours re-runs the find
+                // so the newest list is searched.
+                _viewModel.FindCommand.Execute(null);
+                e.Handled = true;
+                break;
+
             case Key.Delete when _viewModel.SelectedItem is not null:
                 _viewModel.RemoveCommand.Execute(null);
                 e.Handled = true;

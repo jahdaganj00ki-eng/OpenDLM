@@ -5,6 +5,7 @@ using System.Windows.Data;
 using System.Windows.Threading;
 using OpenDLM.App.Services;
 using OpenDLM.Core.Cli;
+using OpenDLM.Core.Http;
 using OpenDLM.Core.Models;
 using OpenDLM.Core.Services;
 using OpenDLM.Core.Util;
@@ -25,6 +26,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly DownloadManager _manager;
     private readonly SettingsService _settingsService;
     private readonly DispatcherTimer _statusTimer;
+    private readonly DownloadSearcher _searcher;
 
     /// <summary>One progress window per running download, keyed by item id.</summary>
     private readonly Dictionary<Guid, Views.ProgressWindow> _progressWindows = new();
@@ -42,6 +44,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         _manager = manager;
         _settingsService = settingsService;
+        _searcher = new DownloadSearcher(manager);
 
         Items = new ObservableCollection<DownloadItem>(manager.Snapshot());
         Categories = CategoryNode.BuildDefaultTree();
@@ -80,6 +83,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         MoveDownCommand = new RelayCommand(() => Move(SelectedItem, 1), () => SelectedItem is not null);
         ClearSearchCommand = new RelayCommand(() => SearchText = string.Empty);
         AddAllFromFileCommand = new RelayCommand(AddFromBatchFile);
+
+        FindCommand = new RelayCommand(ShowFind);
+        ImportCommand = new RelayCommand(ImportDownloads);
+        CleanUpCommand = new RelayCommand(CleanUp, () => Items.Any(i => i.IsFinished));
+        RecoverCommand = new RelayCommand(RecoverInterrupted);
+        DialUpCommand = new RelayCommand(ShowDialUp);
+        ExportCommand = new RelayCommand(ExportDownloads);
+        LoadNowCommand = new RelayCommand(LoadNow, () => SelectedItem is not null);
 
         StartAllCommand = new RelayCommand(() => _ = StartAllAsync(), () => Items.Any(i => i.CanStart));
         StopAllCommand = new RelayCommand(StopAll, () => _manager.HasActiveDownloads);
@@ -239,6 +250,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand StopAllCommand { get; }
     public RelayCommand ToggleThemeCommand { get; }
 
+    public RelayCommand FindCommand { get; }
+    public RelayCommand ImportCommand { get; }
+    public RelayCommand ExportCommand { get; }
+    public RelayCommand CleanUpCommand { get; }
+    public RelayCommand RecoverCommand { get; }
+    public RelayCommand DialUpCommand { get; }
+    public RelayCommand LoadNowCommand { get; }
+
     /// <summary>Raised when the user asks to close the window, so the view can decide how.</summary>
     public event EventHandler? ExitRequested;
 
@@ -322,6 +341,150 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             StatusText = window.ResultMessage ?? "Download added";
         }
+    }
+
+    private void ShowFind()
+    {
+        var settings = _settingsService.Current.Search;
+        var window = new Views.FindWindow(_searcher, settings)
+        {
+            Owner = Application.Current?.MainWindow
+        };
+
+        window.Show();
+
+        if (window.Found is { } found)
+        {
+            SelectedItem = found;
+        }
+    }
+
+    private void ShowDialUp()
+    {
+        var settings = _settingsService.Current;
+        var window = new Views.DialUpWindow(settings.DialUp)
+        {
+            Owner = Application.Current?.MainWindow
+        };
+
+        window.Show();
+
+        if (window.Saved)
+        {
+            _settingsService.Update(current => current.DialUp = window.Result);
+            StatusText = "Dial-up / VPN settings saved";
+        }
+    }
+
+    private void ExportDownloads()
+    {
+        var items = Snapshot();
+        if (items.Count == 0)
+        {
+            Dialogs.Info(Application.Current?.MainWindow, "There is nothing to export.");
+            return;
+        }
+
+        var target = Dialogs.PickSaveLocation(
+            $"opendlm-{DateTime.Now:yyyyMMdd-HHmm}.dlm",
+            AppPaths.RoamingRoot);
+
+        if (target is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (target.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+            {
+                DownloadTransfer.ExportUrls(target, items);
+            }
+            else
+            {
+                DownloadTransfer.Export(target, items);
+            }
+
+            StatusText = $"Exported {items.Count} download(s)";
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error(Application.Current?.MainWindow, "The export failed:\n" + ex.Message);
+        }
+    }
+
+    private void ImportDownloads()
+    {
+        var file = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Import a download list",
+            Filter = "OpenDLM list (*.dlm)|*.dlm|Text file (*.txt)|*.txt|All files (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        if (file.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = DownloadTransfer.Import(file.FileName, url => new AddDownloadRequest
+            {
+                Url = url,
+                Description = "Imported"
+            });
+
+            if (result.Requests.Count == 0)
+            {
+                Dialogs.Warn(Application.Current?.MainWindow, "The file did not contain any usable addresses.");
+                return;
+            }
+
+            var added = 0;
+            foreach (var request in result.Requests)
+            {
+                var item = _manager.CreateItem(request);
+                _manager.Add(item);
+                added++;
+            }
+
+            var skipped = result.SkippedLines > 0 ? $" {result.SkippedLines} line(s) skipped." : string.Empty;
+            StatusText = $"Imported {added} download(s).{skipped}";
+        }
+        catch (Exception ex)
+        {
+            Dialogs.Error(Application.Current?.MainWindow, "The import failed:\n" + ex.Message);
+        }
+    }
+
+    private void CleanUp()
+    {
+        var removed = _manager.CleanUp();
+        StatusText = removed == 0
+            ? "There was nothing to clean up"
+            : $"Cleaned up {removed} download(s)";
+    }
+
+    private void RecoverInterrupted()
+    {
+        var recovered = _manager.RecoverInterrupted();
+        RefreshCounts();
+
+        StatusText = recovered.Count == 0
+            ? "No interrupted downloads were found"
+            : $"Recovered {recovered.Count} interrupted download(s)";
+    }
+
+    private void LoadNow()
+    {
+        if (SelectedItem is not { } item)
+        {
+            return;
+        }
+
+        _ = _manager.StartFirstSegmentOnlyAsync(item);
+        StatusText = $"Loading the first block of {item.FileName}";
     }
 
     private void AddFromBatchFile()
@@ -778,6 +941,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         MoveDownCommand.RaiseCanExecuteChanged();
         StartAllCommand.RaiseCanExecuteChanged();
         StopAllCommand.RaiseCanExecuteChanged();
+        LoadNowCommand.RaiseCanExecuteChanged();
+        CleanUpCommand.RaiseCanExecuteChanged();
     }
 
     public void Dispose()
