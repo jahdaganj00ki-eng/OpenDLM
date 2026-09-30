@@ -37,6 +37,15 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // The self test runs before anything else, including the single-instance
+        // guard: CI must be able to verify a build while a normal copy is running.
+        if (Environment.GetCommandLineArgs().Any(argument =>
+                string.Equals(argument, "--selftest", StringComparison.OrdinalIgnoreCase)))
+        {
+            RunSelfTest();
+            return;
+        }
+
         _cli = CliOptions.Parse(Environment.GetCommandLineArgs().Skip(1).ToArray());
 
         if (_cli.ShowHelp)
@@ -85,6 +94,216 @@ public partial class App : Application
                 "\n\nA log was written to:\n" + AppPaths.LogFile);
             Shutdown();
         }
+    }
+
+    /// <summary>
+    /// Constructs the whole application and renders its windows, then exits.
+    ///
+    /// A WPF application compiles happily with a missing resource key or a bad
+    /// template and only fails when the window is first shown, so a green build
+    /// alone proves very little about the GUI. This is the check that closes that
+    /// gap: CI runs <c>OpenDLM.exe --selftest</c> and the exit code decides.
+    /// </summary>
+    private void RunSelfTest()
+    {
+        var failures = new List<string>();
+
+        void Check(string name, Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                failures.Add($"{name}: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        Check("settings service", () =>
+        {
+            var service = new SettingsService();
+            service.Update(settings => settings.General.TakeOverModifier = "Alt");
+            settingsServiceForWindows = service;
+        });
+
+        Check("file type registry", () => new FileTypeRegistry());
+        Check("download store", () => new DownloadStore());
+        Check("notification icon", () =>
+        {
+            using var icon = AppIcons.CreateTrayIcon(32);
+            if (icon.Handle == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("The tray icon had no handle.");
+            }
+
+            var source = AppIcons.CreateImageSource(32);
+            if (source.IsFrozen == false && source.CanFreeze)
+            {
+                source.Freeze();
+            }
+        });
+
+        if (settingsServiceForWindows is null)
+        {
+            ReportSelfTest(failures);
+            return;
+        }
+
+        foreach (var theme in new[] { AppTheme.Light, AppTheme.Dark, AppTheme.System })
+        {
+            Check($"theme {theme}", () => ThemeManager.Apply(theme));
+        }
+
+        Check("resources", () =>
+        {
+            foreach (var key in SelfTestResourceKeys)
+            {
+                if (TryFindResource(key) is null)
+                {
+                    failures.Add($"resource missing: {key}");
+                }
+            }
+        });
+
+        DownloadManager? manager = null;
+        Check("engine", () =>
+        {
+            manager = new DownloadManager(settingsServiceForWindows!, new FileTypeRegistry(), new DownloadStore());
+        });
+
+        if (manager is null)
+        {
+            ReportSelfTest(failures);
+            return;
+        }
+
+        var engine = manager;
+        var settings = settingsServiceForWindows!;
+
+        // Showing each window is what actually resolves DynamicResource, so merely
+        // constructing them would pass even with a broken palette.
+        Check("main window", () =>
+        {
+            var viewModel = new MainViewModel(engine, settings);
+            var window = new MainWindow(viewModel, settings) { DataContext = viewModel };
+            window.Show();
+            window.UpdateLayout();
+            window.Close();
+            viewModel.Dispose();
+        });
+
+        Check("add URL dialog", () =>
+        {
+            var window = new AddUrlWindow(engine, settings) { Owner = null };
+            window.Show();
+            window.Close();
+        });
+
+        Check("options dialog", () =>
+        {
+            var window = new OptionsWindow(engine, settings) { Owner = null };
+            window.Show();
+            window.UpdateLayout();
+            window.Close();
+        });
+
+        Check("scheduler dialog", () =>
+        {
+            var window = new SchedulerWindow(engine, settings) { Owner = null };
+            window.Show();
+            window.Close();
+        });
+
+        Check("about dialog", () =>
+        {
+            var window = new AboutWindow { Owner = null };
+            window.Show();
+            window.Close();
+        });
+
+        Check("text dialog", () =>
+        {
+            var window = new TextWindow("Self test", "sample text", AppPaths.LogFile) { Owner = null };
+            window.Show();
+            window.Close();
+        });
+
+        Check("credentials dialog", () =>
+        {
+            var window = new CredentialsWindow("example.com", "https://example.com/file.zip") { Owner = null };
+            window.Show();
+            window.Close();
+        });
+
+        Check("progress and complete dialogs", () =>
+        {
+            var item = engine.CreateItem(new AddDownloadRequest
+            {
+                Url = "https://example.com/files/archive.zip",
+                FileName = "archive.zip",
+                Directory = AppPaths.TempDirectory
+            });
+            item.TotalBytes = 1000;
+            item.DownloadedBytes = 400;
+            item.Status = DownloadStatus.Downloading;
+
+            var progress = new ProgressWindow(item, engine, settings) { Owner = null };
+            progress.Show();
+            progress.UpdateLayout();
+            progress.Close();
+
+            var complete = new DownloadCompleteWindow(item) { Owner = null };
+            complete.Show();
+            complete.Close();
+        });
+
+        engine.Dispose();
+        ReportSelfTest(failures);
+    }
+
+    /// <summary>Every resource key the windows rely on, checked by name.</summary>
+    private static readonly string[] SelfTestResourceKeys =
+    {
+        "IconLookup",
+        "Style.ToolButton", "Style.ToolButtonIconOnly", "Style.ToolButtonLarge",
+        "Style.Muted", "Style.SectionHeading", "Style.Heading",
+        "Icon.Add", "Icon.Start", "Icon.Pause", "Icon.Stop", "Icon.Remove",
+        "Icon.Options", "Icon.Calendar", "Icon.Folder", "Icon.Queue", "Icon.Search",
+        "Icon.About", "Icon.Up", "Icon.Down", "Icon.OpenFolder",
+        "Brush.Window", "Brush.Panel", "Brush.PanelAlt", "Brush.Toolbar", "Brush.MenuBar",
+        "Brush.StatusBar", "Brush.Header", "Brush.DetailsPane", "Brush.Border",
+        "Brush.GridLine", "Brush.Separator", "Brush.Text", "Brush.TextMuted",
+        "Brush.TextDisabled", "Brush.Accent", "Brush.Selection", "Brush.Hover",
+        "Brush.Pressed", "Brush.Progress", "Brush.ProgressTrack", "Brush.ProgressText",
+        "Brush.Error", "Brush.Success", "Brush.Warning",
+        "Brush.ScrollTrack", "Brush.ScrollThumb", "Brush.ScrollThumbHover"
+    };
+
+    private SettingsService? settingsServiceForWindows;
+
+    /// <summary>Writes the report where CI can upload it and sets the process exit code.</summary>
+    private void ReportSelfTest(List<string> failures)
+    {
+        var report = failures.Count == 0
+            ? $"SELFTEST OK - OpenDLM {AppPaths.Version}"
+            : "SELFTEST FAILED" + Environment.NewLine +
+              string.Join(Environment.NewLine, failures.Select(failure => " - " + failure));
+
+        try
+        {
+            File.WriteAllText(Path.Combine(AppPaths.LogDirectory, "selftest.txt"), report);
+        }
+        catch (Exception ex)
+        {
+            report += Environment.NewLine + "(could not write the report: " + ex.Message + ")";
+        }
+
+        ConsoleBridge.WriteLine(report, "OpenDLM self test");
+
+        var exitCode = failures.Count == 0 ? 0 : 1;
+        Environment.ExitCode = exitCode;
+        Shutdown(exitCode);
     }
 
     private void StartEngine()

@@ -83,6 +83,42 @@ jobs:
             --self-contained false `
             -o artifacts/OpenDLM
 
+      # A green build says the XAML parsed; it says nothing about whether the
+      # windows actually render. The self test loads every resource key and shows
+      # every window, so a missing resource or a bad template fails here instead
+      # of being discovered by the first person to run the program.
+      - name: Self test the desktop application
+        shell: pwsh
+        run: |
+          $exe = "artifacts\OpenDLM\OpenDLM.exe"
+          if (-not (Test-Path $exe)) {
+            Write-Output "::error::OpenDLM.exe was not produced by the publish step"
+            exit 1
+          }
+
+          # Keep the self test away from any real profile data.
+          $home = Join-Path (Get-Location) "artifacts\selftest-home"
+          New-Item -ItemType Directory -Force -Path $home | Out-Null
+          $env:OPEN_DLM_HOME = $home
+
+          $process = Start-Process -FilePath $exe -ArgumentList "--selftest" -PassThru -Wait
+          Write-Output "self test exit code: $($process.ExitCode)"
+
+          $report = Join-Path $home "logs\selftest.txt"
+          if (Test-Path $report) {
+            Write-Output "--- self test report ---"
+            Get-Content $report | ForEach-Object { Write-Output $_ }
+          } else {
+            Write-Output "::error::The self test did not write a report at all"
+          }
+
+          if ($process.ExitCode -ne 0) {
+            Write-Output "::error::The desktop application failed its self test"
+            exit 1
+          }
+
+          Write-Output "self test passed"
+
       - name: Stage the browser extension
         shell: pwsh
         run: |
