@@ -66,6 +66,7 @@ public sealed class TestFtpServer : IDisposable
 
     private int _controlRequests;
     private int _transfers;
+    private int _restRequests;
 
     public string Url(string path = "/file.bin") => $"ftp://127.0.0.1:{Port}{path}";
 
@@ -203,7 +204,9 @@ public sealed class TestFtpServer : IDisposable
 
                             dataListener.Start();
                             var dataPort = ((IPEndPoint)dataListener.LocalEndpoint).Port;
-                            dataListenerTask = dataListener.AcceptTcpClientAsync(cancellationToken);
+                            // AcceptTcpClientAsync returns a ValueTask in .NET 8; the
+                            // field is a Task so it can be awaited later in RETR.
+                            dataListenerTask = dataListener.AcceptTcpClientAsync(cancellationToken).AsTask();
 
                             var portHigh = dataPort / 256;
                             var portLow = dataPort % 256;
@@ -224,7 +227,7 @@ public sealed class TestFtpServer : IDisposable
 
                             dataListener.Start();
                             var dataPort = ((IPEndPoint)dataListener.LocalEndpoint).Port;
-                            dataListenerTask = dataListener.AcceptTcpClientAsync(cancellationToken);
+                            dataListenerTask = dataListener.AcceptTcpClientAsync(cancellationToken).AsTask();
 
                             await ReplyAsync(stream,
                                 $"229 Entering Extended Passive Mode (|||{dataPort}|)",
