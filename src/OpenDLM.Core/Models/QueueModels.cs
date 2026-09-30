@@ -194,6 +194,12 @@ public sealed class AddDownloadRequest
     public string? MimeType { get; set; }
     public string? Cookies { get; set; }
     public string? UserAgent { get; set; }
+
+    /// <summary>
+    /// The proxy the browser is using, as "host:port". When present and the matching
+    /// "take the browser's proxy" switch is on, this download uses it.
+    /// </summary>
+    public string? BrowserProxy { get; set; }
     public string? Username { get; set; }
     public string? Password { get; set; }
     public long TotalBytes { get; set; } = -1;

@@ -172,6 +172,56 @@ public partial class MainWindow : Window
         ApplyToolbarStyle(style);
     }
 
+    /// <summary>Applies one of the explicit "sort by" entries from the View menu.</summary>
+    private void OnSortSelected(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem item || item.Tag is not string property)
+        {
+            return;
+        }
+
+        _viewModel.ItemsView.SortDescriptions.Clear();
+        _viewModel.ItemsView.SortDescriptions.Add(
+            new SortDescription(property, ListSortDirection.Ascending));
+
+        UpdateSortChecks(property, ascending: true);
+
+        _settingsService.Update(settings =>
+        {
+            settings.Interface.SortColumn = property;
+            settings.Interface.SortAscending = true;
+        });
+    }
+
+    private void OnSortDirectionToggled(object sender, RoutedEventArgs e)
+    {
+        var ascending = !MenuSortDirection.IsChecked;
+        MenuSortDirection.IsChecked = ascending;
+
+        var current = _viewModel.ItemsView.SortDescriptions.FirstOrDefault();
+        var property = string.IsNullOrEmpty(current.PropertyName)
+            ? _settingsService.Current.Interface.SortColumn
+            : current.PropertyName;
+
+        _viewModel.ItemsView.SortDescriptions.Clear();
+        _viewModel.ItemsView.SortDescriptions.Add(new SortDescription(property,
+            ascending ? ListSortDirection.Ascending : ListSortDirection.Descending));
+
+        _settingsService.Update(settings => settings.Interface.SortAscending = ascending);
+    }
+
+    private void UpdateSortChecks(string property, bool ascending)
+    {
+        MenuSortAdded.IsChecked = property == "DateAdded";
+        MenuSortName.IsChecked = property == "FileName";
+        MenuSortSize.IsChecked = property == "Size";
+        MenuSortStatus.IsChecked = property == "Status";
+        MenuSortTimeLeft.IsChecked = property == "TimeLeft";
+        MenuSortRate.IsChecked = property == "Speed";
+        MenuSortDescription.IsChecked = property == "Description";
+        MenuSortDirection.IsChecked = ascending;
+    }
+
     private void SetCategoryPane(bool visible)
     {
         CategoryPane.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
@@ -363,6 +413,8 @@ public partial class MainWindow : Window
         _viewModel.ItemsView.SortDescriptions.Clear();
         _viewModel.ItemsView.SortDescriptions.Add(new SortDescription(property,
             settings.SortAscending ? ListSortDirection.Ascending : ListSortDirection.Descending));
+
+        UpdateSortChecks(property, settings.SortAscending);
     }
 
     /// <summary>Maps a column header to the item property it sorts on.</summary>

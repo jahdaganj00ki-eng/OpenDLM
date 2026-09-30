@@ -397,14 +397,14 @@ public sealed class IpcServer : IDisposable
             MimeType = GetString(node, "mimeType"),
             Cookies = GetString(node, "cookies"),
             UserAgent = GetString(node, "userAgent"),
+            BrowserProxy = GetString(node, "browserProxy"),
             StartNow = node["startNow"]?.GetValue<bool>() ?? true,
             AddToQueue = node["addToQueue"]?.GetValue<bool>() ?? false
         };
 
         if (node["totalBytes"] is { } total && long.TryParse(total.ToJsonString(), out var bytes))
         {
-            request.TotalBytes = bytes;
-        }
+            request.TotalBytes = bytes;        }
 
         if (node["queueId"] is { } queue && int.TryParse(queue.ToJsonString(), out var queueId))
         {

@@ -223,6 +223,10 @@ public sealed class DownloadItem : INotifyPropertyChanged
     [JsonPropertyName("queueName")]
     public string QueueName { get; set; } = "Main queue";
 
+    /// <summary>The proxy the browser is using, as "host:port", when the browser sent one.</summary>
+    [JsonPropertyName("browserProxy")]
+    public string? BrowserProxy { get; set; }
+
     [JsonPropertyName("referer")]
     public string? Referer { get; set; }
 

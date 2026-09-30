@@ -197,6 +197,7 @@ public sealed class DownloadManager : IDisposable
                 : request.Description,
             Cookies = request.Cookies,
             UserAgent = request.UserAgent,
+            BrowserProxy = request.BrowserProxy,
             Username = request.Username,
             Password = request.Password,
             MimeType = request.MimeType,
@@ -500,6 +501,49 @@ public sealed class DownloadManager : IDisposable
         return recovered;
     }
 
+    /// <summary>
+    /// Promotes the browser's proxy for this download to the manual one, when the
+    /// matching switch is on. The browser is the only party that knows which proxy
+    /// makes a given host reachable, so when it volunteers one, that wins.
+    /// </summary>
+    private void ApplyBrowserProxyIfEnabled(DownloadItem item)
+    {
+        if (string.IsNullOrWhiteSpace(item.BrowserProxy))
+        {
+            return;
+        }
+
+        var connection = _settingsService.Current.Connection;
+        var isHttps = item.Url.Contains("://https", StringComparison.OrdinalIgnoreCase) ||
+                      item.Url.StartsWith("https", StringComparison.OrdinalIgnoreCase);
+
+        var wanted = isHttps
+            ? connection.TakeHttpsProxyFromBrowser
+            : connection.TakeHttpProxyFromBrowser;
+
+        if (!wanted)
+        {
+            return;
+        }
+
+        _settingsService.Update(settings =>
+        {
+            settings.Connection.ProxyAddress = item.BrowserProxy;
+            settings.Connection.ProxyPort = ExtractPort(item.BrowserProxy, settings.Connection.ProxyPort);
+            settings.Connection.ProxyMode = ProxyMode.Manual;
+        });
+    }
+
+    private static int ExtractPort(string hostAndPort, int fallback)
+    {
+        var colon = hostAndPort.LastIndexOf(':');
+        if (colon > 0 && int.TryParse(hostAndPort[(colon + 1)..], out var port) && port is > 0 and <= 65535)
+        {
+            return port;
+        }
+        return fallback;
+    }
+
     /// <summary>Adds an item to the list without starting it.</summary>
     public void Add(DownloadItem item)
     {
@@ -543,9 +587,9 @@ public sealed class DownloadManager : IDisposable
         return await HttpProbe.ProbeAsync(url, context, probeTarget, cancellationToken).ConfigureAwait(false);
     }
 
-    private DownloadContext BuildContext() => new()
+    private DownloadContext BuildContext(DownloadItem? item = null) => new()
     {
-        Client = _http.Get(),
+        Client = _http.Get(item),
         Settings = _settingsService.Current,
         Governor = _governor,
         SiteLogins = SiteLogins,
@@ -997,7 +1041,11 @@ public sealed class DownloadManager : IDisposable
 
     private async Task<DownloadOutcome> RunOnceAsync(DownloadItem item, CancellationToken cancellationToken, DownloadProgressSink sink)
     {
-        var context = BuildContext();
+        // A browser hand-off can carry the proxy the browser itself uses, which is
+        // then preferred over the global proxy for this one download.
+        ApplyBrowserProxyIfEnabled(item);
+
+        var context = BuildContext(item);
         var settings = context.Settings;
 
         item.Status = DownloadStatus.Connecting;
@@ -1114,9 +1162,20 @@ public sealed class DownloadManager : IDisposable
 
         // ---- run -------------------------------------------------------------
         item.Status = DownloadStatus.Downloading;
-        var outcome = isFtp
-            ? await FtpSupport.RunAsync(item, context, plan, sink, cancellationToken).ConfigureAwait(false)
-            : await _downloader.RunAsync(item, context, plan, sink, cancellationToken).ConfigureAwait(false);
+
+        DownloadOutcome outcome;
+        try
+        {
+            outcome = isFtp
+                ? await FtpSupport.RunAsync(item, context, plan, sink, cancellationToken).ConfigureAwait(false)
+                : await _downloader.RunAsync(item, context, plan, sink, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            // A client built for the browser's proxy belongs to this one run, so it
+            // must not outlive it and keep its sockets pooled.
+            context.Client.DisposeIfTracked();
+        }
 
         if (outcome.Success)
         {

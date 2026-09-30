@@ -28,8 +28,18 @@ public sealed class HttpClientProvider : IDisposable
     }
 
     /// <summary>Returns a client matching the current connection settings, rebuilding it only when needed.</summary>
-    public HttpClient Get()
+    public HttpClient Get(DownloadItem? item = null)
     {
+        // A browser hand-off may carry the proxy the browser itself uses. When the
+        // matching switch is on, that proxy is used for this one download only, via a
+        // dedicated client, so it cannot leak into the others.
+        if (item is not null && !string.IsNullOrWhiteSpace(item.BrowserProxy) &&
+            WantsBrowserProxy(_settingsAccessor().Connection, item.Url))
+        {
+            return BuildBrowserProxyClient(_settingsAccessor().Connection, item.BrowserProxy!,
+                _settingsAccessor().Advanced);
+        }
+
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -183,6 +193,57 @@ public sealed class HttpClientProvider : IDisposable
         client.DefaultRequestHeaders.ConnectionClose = false;
 
         Log.Info($"HTTP client built (proxy={connection.ProxyMode}, certCheck={!connection.IgnoreCertificateErrors}).");
+        return client;
+    }
+
+    /// <summary>True when the browser's proxy should be preferred for this scheme.</summary>
+    private static bool WantsBrowserProxy(ConnectionSettings connection, string? url)
+    {
+        var isHttps = url is not null &&
+                       url.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
+        return isHttps ? connection.TakeHttpsProxyFromBrowser : connection.TakeHttpProxyFromBrowser;
+    }
+
+    /// <summary>
+    /// Builds a throwaway client that routes through the proxy the browser offered.
+    /// It is deliberately not cached: it belongs to one download, and a cached client
+    /// would outlive the setting that justified it.
+    /// </summary>
+    private static HttpClient BuildBrowserProxyClient(
+        ConnectionSettings connection, string hostAndPort, AdvancedSettings advanced)
+    {
+        var colon = hostAndPort.LastIndexOf(':');
+        var host = colon > 0 ? hostAndPort[..colon] : hostAndPort;
+        var port = colon > 0 && int.TryParse(hostAndPort[(colon + 1)..], out var parsed) ? parsed : 8080;
+
+        var overrideSettings = new ConnectionSettings
+        {
+            ProxyMode = ProxyMode.Manual,
+            ProxyAddress = host,
+            ProxyPort = port,
+            ProxyUsername = connection.ProxyUsername,
+            ProxyPasswordProtected = connection.ProxyPasswordProtected,
+            ProxyBypassLocal = connection.ProxyBypassLocal,
+            UseHttpProxy = connection.UseHttpProxy,
+            UseHttpsProxy = connection.UseHttpsProxy,
+            UseFtpProxy = connection.UseFtpProxy,
+            IgnoreCertificateErrors = connection.IgnoreCertificateErrors,
+            UseHeadProbe = connection.UseHeadProbe,
+            MaxRedirects = connection.MaxRedirects,
+            TimeoutSeconds = connection.TimeoutSeconds,
+            SingleConnectionFallback = connection.SingleConnectionFallback,
+            MaxConnectionsPerFile = connection.MaxConnectionsPerFile,
+            UseCustomUserAgent = connection.UseCustomUserAgent,
+            CustomUserAgent = connection.CustomUserAgent
+        };
+
+        var client = Build(overrideSettings, advanced);
+
+        // Held for the download's lifetime by the engine's dispose path.
+        client.TrackForDisposal();
+
+        Log.Info($"Using the browser's proxy ({host}:{port}) for this download.");
         return client;
     }
 

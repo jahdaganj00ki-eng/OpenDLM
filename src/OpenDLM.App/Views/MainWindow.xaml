@@ -67,7 +67,19 @@
                 <MenuItem x:Name="MenuShowToolbar" Header="_Toolbar" IsCheckable="True" Click="OnToggleToolbar" />
                 <MenuItem x:Name="MenuShowStatusBar" Header="_Status bar" IsCheckable="True" Click="OnToggleStatusBar" />
                 <Separator />
-                <MenuItem Header="_Toolbar style">
+                <MenuItem x:Name="MenuSortBy" Header="_Sort by">
+                    <MenuItem x:Name="MenuSortAdded" Header="_Added" Click="OnSortSelected" Tag="DateAdded" />
+                    <MenuItem x:Name="MenuSortName" Header="_Name" Click="OnSortSelected" Tag="FileName" />
+                    <MenuItem x:Name="MenuSortSize" Header="_Size" Click="OnSortSelected" Tag="Size" />
+                    <MenuItem x:Name="MenuSortStatus" Header="_Status" Click="OnSortSelected" Tag="Status" />
+                    <MenuItem x:Name="MenuSortTimeLeft" Header="Time _left" Click="OnSortSelected" Tag="TimeLeft" />
+                    <MenuItem x:Name="MenuSortRate" Header="Transfer _rate" Click="OnSortSelected" Tag="Speed" />
+                    <MenuItem x:Name="MenuSortDescription" Header="D_escription" Click="OnSortSelected" Tag="Description" />
+                    <Separator />
+                    <MenuItem x:Name="MenuSortDirection" Header="_Reverse order" IsCheckable="True" Click="OnSortDirectionToggled" />
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="_Toolbar layout">
                     <MenuItem x:Name="MenuToolbarIconsAndText" Header="Icons and _text" IsCheckable="True" Click="OnToolbarStyleSelected" Tag="IconsAndText" />
                     <MenuItem x:Name="MenuToolbarIconsOnly" Header="_Icons only" IsCheckable="True" Click="OnToolbarStyleSelected" Tag="IconsOnly" />
                     <MenuItem x:Name="MenuToolbarLarge" Header="_Large icons" IsCheckable="True" Click="OnToolbarStyleSelected" Tag="LargeIcons" />

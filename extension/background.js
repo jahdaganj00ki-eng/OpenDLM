@@ -342,6 +342,12 @@ async function buildAddDownload(options) {
     request.userAgent = options.userAgent;
   }
 
+  // The proxy the browser is using, when there is one, so a host that is only
+  // reachable that way can still be fetched by the desktop app.
+  if (options.browserProxy) {
+    request.browserProxy = options.browserProxy;
+  }
+
   const category = categorize(filename || options.url);
   if (category) {
     request.category = category;
@@ -794,6 +800,34 @@ async function downloadSelection(info, tab, pageUrl) {
   });
 }
 
+/**
+ * Reads the proxy the browser itself is using for an address.
+ *
+ * Handed to the desktop app with a download, so a host that is only reachable
+ * through the browser's proxy can still be fetched. A direct result is reported as an
+ * empty string rather than omitted, so the app never has to guess.
+ */
+async function browserProxyFor(url) {
+  if (!isWebUrl(url)) {
+    return '';
+  }
+
+  try {
+    const config = await chrome.proxy.settings.get({ incognito: false });
+
+    if (config && config.value && config.value.proxy) {
+      // Strip the scheme: the app stores a plain host and port.
+      return String(config.value.proxy)
+        .replace(/^[a-z0-9+.-]+:\/\//i, '')
+        .trim();
+    }
+  } catch (error) {
+    // The permission may not be granted, or a policy may block it.
+  }
+
+  return '';
+}
+
 /** Reads the web links out of a text selection, dropping plain prose. */
 function selectionLinks(text) {
   if (typeof text !== 'string' || text.length === 0) {
@@ -847,6 +881,8 @@ async function transferDownloadItem(info, pageUrl) {
   await chrome.downloads.cancel(itemId);
   await chrome.downloads.erase({ id: itemId });
 
+  const browserProxy = await browserProxyFor(found.url);
+
   await sendToApp(buildAddDownload({
     url: found.url,
     filename: found.filename || '',
@@ -854,6 +890,7 @@ async function transferDownloadItem(info, pageUrl) {
     totalBytes: found.totalBytes >= 0 ? found.totalBytes : 0,
     pageUrl,
     userAgent: currentUserAgent(),
+    browserProxy,
   }));
 }
 
