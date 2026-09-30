@@ -31,11 +31,25 @@ public partial class App : Application
     private MainViewModel? _viewModel;
     private MainWindow? _mainWindow;
     private CliOptions _cli = new();
+
+    /// <summary>True while <c>--selftest</c> is running: never show a dialog, only report.</summary>
+    private bool _selfTestMode;
+
+    /// <summary>Self test failures, shared with the global exception handlers.</summary>
+    private List<string>? _selfTestFailures;
+
+    private bool _selfTestReported;
     private bool _exiting;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Registered before anything else, including the self test, so a failure
+        // while the application is being assembled is reported rather than taking
+        // the process down with no output at all.
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
 
         // The self test runs before anything else, including the single-instance
         // guard: CI must be able to verify a build while a normal copy is running.
@@ -79,9 +93,6 @@ public partial class App : Application
             return;
         }
 
-        DispatcherUnhandledException += OnDispatcherUnhandledException;
-        AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
-
         try
         {
             StartEngine();
@@ -106,8 +117,23 @@ public partial class App : Application
     /// </summary>
     private void RunSelfTest()
     {
-        var failures = new List<string>();
+        _selfTestMode = true;
+        var failures = _selfTestFailures = new List<string>();
 
+        try
+        {
+            RunSelfTestChecks(failures);
+        }
+        catch (Exception ex)
+        {
+            failures.Add($"unhandled: {ex.GetType().Name}: {ex.Message} {ex.StackTrace}");
+        }
+
+        ReportSelfTest(failures);
+    }
+
+    private void RunSelfTestChecks(List<string> failures)
+    {
         void Check(string name, Action action)
         {
             try
@@ -146,7 +172,6 @@ public partial class App : Application
 
         if (settingsServiceForWindows is null)
         {
-            ReportSelfTest(failures);
             return;
         }
 
@@ -174,7 +199,6 @@ public partial class App : Application
 
         if (manager is null)
         {
-            ReportSelfTest(failures);
             return;
         }
 
@@ -259,7 +283,6 @@ public partial class App : Application
         });
 
         engine.Dispose();
-        ReportSelfTest(failures);
     }
 
     /// <summary>Every resource key the windows rely on, checked by name.</summary>
@@ -285,6 +308,12 @@ public partial class App : Application
     /// <summary>Writes the report where CI can upload it and sets the process exit code.</summary>
     private void ReportSelfTest(List<string> failures)
     {
+        if (_selfTestReported)
+        {
+            return;
+        }
+        _selfTestReported = true;
+
         var report = failures.Count == 0
             ? $"SELFTEST OK - OpenDLM {AppPaths.Version}"
             : "SELFTEST FAILED" + Environment.NewLine +
@@ -672,6 +701,17 @@ public partial class App : Application
     {
         Log.Error("An unhandled UI exception occurred.", e.Exception);
 
+        if (_selfTestMode)
+        {
+            // Never show a dialog from CI: record the failure, stop the test and
+            // let the exit code carry the verdict.
+            e.Handled = true;
+            _selfTestFailures ??= new List<string>();
+            _selfTestFailures.Add($"dispatcher: {e.Exception.GetType().Name}: {e.Exception.Message}");
+            ReportSelfTest(_selfTestFailures);
+            return;
+        }
+
         // Recover from a UI fault rather than killing the download engine with it.
         e.Handled = true;
 
@@ -683,5 +723,12 @@ public partial class App : Application
     private void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
         Log.Error("An unhandled exception occurred.", e.ExceptionObject as Exception);
+
+        if (_selfTestMode && !_selfTestReported)
+        {
+            _selfTestFailures ??= new List<string>();
+            _selfTestFailures.Add($"domain: {e.ExceptionObject?.GetType().Name}: {e.ExceptionObject}");
+            ReportSelfTest(_selfTestFailures);
+        }
     }
 }
