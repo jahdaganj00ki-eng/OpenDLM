@@ -55,20 +55,24 @@
                         <CheckBox x:Name="ConfirmExitBox" Margin="0,5,0,0" Content="Ask before closing OpenDLM" />
 
                         <TextBlock Text="Takeover keys" Style="{StaticResource Style.SectionHeading}" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="180" />
-                                <ColumnDefinition Width="150" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Force takeover while holding" VerticalAlignment="Center" />
-                            <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,3" x:Name="TakeOverKeyBox" />
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Let the browser keep it while holding" VerticalAlignment="Center" />
-                            <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,3" x:Name="BypassKeyBox" />
-                        </Grid>
+                        <TextBlock Text="Force takeover while holding" Style="{StaticResource Style.SectionHeading}" />
+                        <WrapPanel>
+                            <CheckBox x:Name="ForceAltBox" Margin="0,0,14,5" Content="Alt" />
+                            <CheckBox x:Name="ForceCtrlBox" Margin="0,0,14,5" Content="Ctrl" />
+                            <CheckBox x:Name="ForceShiftBox" Margin="0,0,14,5" Content="Shift" />
+                        </WrapPanel>
+
+                        <TextBlock Text="Let the browser keep it while holding" Style="{StaticResource Style.SectionHeading}" />
+                        <WrapPanel>
+                            <CheckBox x:Name="PreventAltBox" Margin="0,0,14,5" Content="Alt" />
+                            <CheckBox x:Name="PreventCtrlBox" Margin="0,0,14,5" Content="Ctrl" />
+                            <CheckBox x:Name="PreventShiftBox" Margin="0,0,14,5" Content="Shift" />
+                        </WrapPanel>
+
+                        <TextBlock Margin="0,6,0,0"
+                                   TextWrapping="Wrap"
+                                   Style="{StaticResource Style.Muted}"
+                                   Text="The two lists are independent: you can force a takeover with Alt while preventing one with Ctrl, which is what lets several bindings be active at once. Selecting none of them, or turning off the switches below, disables that direction entirely." />
 
                         <CheckBox x:Name="EnableForceKeyBox" Margin="0,8,0,0" Content="Honour the force takeover key" />
                         <CheckBox x:Name="EnablePreventKeyBox" Margin="0,5,0,0" Content="Honour the let-the-browser-keep-it key" />

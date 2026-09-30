@@ -298,6 +298,33 @@ public static class UnitTests
         }
     }
 
+    public static Task ModifierSpecificationsNormalize()
+    {
+        Check.Equal("Alt", GeneralSettings.NormalizeModifier("alt", "Alt"), "a single modifier");
+        Check.Equal("Alt", GeneralSettings.NormalizeModifier("ALT", "Shift"), "case-insensitive");
+        Check.Equal("Alt+Ctrl", GeneralSettings.NormalizeModifier("Ctrl+Alt", "Shift"), "the order is canonical");
+        Check.Equal("Alt+Ctrl+Shift", GeneralSettings.NormalizeModifier("Shift,Ctrl,Alt", "Shift"),
+            "commas are accepted as separators");
+        Check.Equal("Alt+Shift", GeneralSettings.NormalizeModifier("Alt + Shift", "Ctrl"), "spaces are separators");
+        Check.Equal("Alt", GeneralSettings.NormalizeModifier("Alt+Alt", "Shift"), "duplicates collapse");
+        Check.Equal("None", GeneralSettings.NormalizeModifier("None", "Alt"), "None wins");
+        Check.Equal("None", GeneralSettings.NormalizeModifier("Alt+None", "Alt"), "None wins over a group");
+        Check.Equal("Alt", GeneralSettings.NormalizeModifier("", "Alt"), "empty falls back");
+        Check.Equal("Alt", GeneralSettings.NormalizeModifier(null, "Alt"), "null falls back");
+        Check.Equal("Alt", GeneralSettings.NormalizeModifier("Meta", "Alt"), "an unsupported name falls back");
+
+        // Two independent lists are the whole point: force with one set, prevent with another.
+        var settings = AppSettings.CreateDefault();
+        settings.General.TakeOverModifier = "Ctrl+Shift";
+        settings.General.BypassModifier = "Alt";
+        settings.Normalize();
+
+        Check.Equal("Ctrl+Shift", settings.General.TakeOverModifier, "a force group survives a round trip");
+        Check.Equal("Alt", settings.General.BypassModifier, "the prevent list is independent");
+
+        return Task.CompletedTask;
+    }
+
     public static Task QueueWindowsHandleOvernightRanges()
     {
         var queue = new DownloadQueue

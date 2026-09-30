@@ -193,19 +193,53 @@ public sealed class GeneralSettings
 
     internal void Normalize(AppSettings owner)
     {
-        var allowed = new[] { "Alt", "Ctrl", "Shift", "None" };
-        if (!allowed.Contains(TakeOverModifier, StringComparer.OrdinalIgnoreCase))
-        {
-            TakeOverModifier = "Alt";
-        }
-        if (!allowed.Contains(BypassModifier, StringComparer.OrdinalIgnoreCase))
-        {
-            BypassModifier = "Shift";
-        }
+        TakeOverModifier = NormalizeModifier(TakeOverModifier, "Alt");
+        BypassModifier = NormalizeModifier(BypassModifier, "Shift");
+
         if (string.IsNullOrWhiteSpace(Language))
         {
             Language = "en";
         }
+    }
+
+    /// <summary>
+    /// Validates a modifier specification and puts it in canonical form.
+    ///
+    /// A specification may be a single modifier or a group such as "Alt+Ctrl", so a
+    /// user can force a takeover with one modifier and prevent it with another. The
+    /// accepted order is fixed so two equivalent entries compare equal, and "None"
+    /// wins outright because it means "no modifier at all".
+    /// </summary>
+    public static string NormalizeModifier(string? value, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        var allowed = new[] { "Alt", "Ctrl", "Shift", "None" };
+        var picked = new List<string>();
+
+        foreach (var part in value.Split(new[] { '+', ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var match = allowed.FirstOrDefault(candidate =>
+                string.Equals(candidate, part, StringComparison.OrdinalIgnoreCase));
+
+            if (match is not null && !picked.Contains(match, StringComparer.OrdinalIgnoreCase))
+            {
+                picked.Add(match);
+            }
+        }
+
+        if (picked.Contains("None", StringComparer.OrdinalIgnoreCase))
+        {
+            return "None";
+        }
+
+        // Keep a stable order regardless of how the value was typed.
+        return picked.Count > 0
+            ? string.Join("+", allowed.Where(candidate => picked.Contains(candidate, StringComparer.OrdinalIgnoreCase)))
+            : fallback;
     }
 }
 

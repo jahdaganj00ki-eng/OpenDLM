@@ -104,12 +104,34 @@ public partial class OptionsWindow : Window
         {
             SocksTypeBox.Items.Add(value);
         }
+    }
 
-        foreach (var modifier in new[] { "Alt", "Ctrl", "Shift", "None" })
-        {
-            TakeOverKeyBox.Items.Add(modifier);
-            BypassKeyBox.Items.Add(modifier);
-        }
+    /// <summary>Reads "Alt+Ctrl" into a set of part names.</summary>
+    private static List<string> SplitModifiers(string? value)
+        => (value ?? string.Empty)
+            .Split(new[] { '+', ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Trim())
+            .Where(part => part.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    /// <summary>Builds a canonical specification, or "None" when nothing is selected.</summary>
+    private static string JoinModifiers(params bool?[] states)
+    {
+        var parts = new List<string>();
+        if (states.Length > 0 && states[0] == true) parts.Add("Alt");
+        if (states.Length > 1 && states[1] == true) parts.Add("Ctrl");
+        if (states.Length > 2 && states[2] == true) parts.Add("Shift");
+        return parts.Count == 0 ? "None" : string.Join("+", parts);
+    }
+
+    private static void SetModifierBoxes(CheckBox alt, CheckBox ctrl, CheckBox shift, string? specification)
+    {
+        var parts = SplitModifiers(specification);
+        alt.IsChecked = parts.Contains("Alt", StringComparer.OrdinalIgnoreCase);
+        ctrl.IsChecked = parts.Contains("Ctrl", StringComparer.OrdinalIgnoreCase) ||
+                         parts.Contains("Control", StringComparer.OrdinalIgnoreCase);
+        shift.IsChecked = parts.Contains("Shift", StringComparer.OrdinalIgnoreCase);
     }
 
     private static void SelectEnum<T>(ComboBox box, T value) where T : struct, Enum
@@ -132,24 +154,6 @@ public partial class OptionsWindow : Window
     private static T ReadEnum<T>(ComboBox box, T fallback) where T : struct, Enum
         => box.SelectedItem is T value ? value : fallback;
 
-    private static void SelectText(ComboBox box, string? value)
-    {
-        for (var index = 0; index < box.Items.Count; index++)
-        {
-            if (box.Items[index] is string candidate &&
-                string.Equals(candidate, value, StringComparison.OrdinalIgnoreCase))
-            {
-                box.SelectedIndex = index;
-                return;
-            }
-        }
-
-        box.SelectedIndex = 0;
-    }
-
-    private static string ReadText(ComboBox box, string fallback)
-        => box.SelectedItem as string ?? fallback;
-
     // ------------------------------------------------------------------- loading
 
     private void LoadFromSettings()
@@ -169,8 +173,8 @@ public partial class OptionsWindow : Window
         EnablePreventKeyBox.IsChecked = general.EnablePreventKey;
         CheckMouseBox.IsChecked = general.CheckMouse;
         SkipHtmlBox.IsChecked = general.SkipHtml;
-        SelectText(TakeOverKeyBox, general.TakeOverModifier);
-        SelectText(BypassKeyBox, general.BypassModifier);
+        SetModifierBoxes(ForceAltBox, ForceCtrlBox, ForceShiftBox, general.TakeOverModifier);
+        SetModifierBoxes(PreventAltBox, PreventCtrlBox, PreventShiftBox, general.BypassModifier);
 
         var downloads = _working.Downloads;
         DefaultFolderBox.Text = downloads.DefaultDownloadDirectory;
@@ -372,8 +376,10 @@ public partial class OptionsWindow : Window
         general.EnablePreventKey = EnablePreventKeyBox.IsChecked == true;
         general.CheckMouse = CheckMouseBox.IsChecked == true;
         general.SkipHtml = SkipHtmlBox.IsChecked == true;
-        general.TakeOverModifier = ReadText(TakeOverKeyBox, "Alt");
-        general.BypassModifier = ReadText(BypassKeyBox, "Shift");
+        general.TakeOverModifier = JoinModifiers(
+            ForceAltBox.IsChecked, ForceCtrlBox.IsChecked, ForceShiftBox.IsChecked);
+        general.BypassModifier = JoinModifiers(
+            PreventAltBox.IsChecked, PreventCtrlBox.IsChecked, PreventShiftBox.IsChecked);
 
         var downloads = _working.Downloads;
         downloads.DefaultDownloadDirectory = DefaultFolderBox.Text.Trim();

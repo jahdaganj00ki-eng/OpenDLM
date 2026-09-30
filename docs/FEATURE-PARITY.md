@@ -117,8 +117,8 @@ follow-Windows themes, so this is an addition rather than a parity item.
 | Takeover file types | `Extensions` | Done | Editable, kept in step with the app over IPC |
 | Context menu entries | `menuExt` (per browser and per action) | Partial | One switch for the OpenDLM entries rather than a toggle per browser and per action |
 | Media sniffing | `DwnlPanel` type list | Partial | Detected in the page; the reference's editable list of sniffed types plus its subtitle formats is not configurable in OpenDLM |
-| Force takeover key | `SpecialKeys\UseKeyToForce`, `AltF`, `CtrlF`, `ShiftF` | Partial | One modifier per action (`Alt` / `Ctrl` / `Shift` / `None`) instead of independent force and prevent modifiers per key |
-| Prevent key | `SpecialKeys\UseKeyToPrevent`, `ShiftP`, `CtrlP`, `AltP` | Partial | Same |
+| Force takeover key | `SpecialKeys\UseKeyToForce`, `AltF`, `CtrlF`, `ShiftF` | Done | Independent list: Alt, Ctrl and Shift can all force at once, stored as "Alt+Ctrl" |
+| Prevent key | `SpecialKeys\UseKeyToPrevent`, `ShiftP`, `CtrlP`, `AltP` | Done | A second, independent list, so a force set and a prevent set can differ |
 | Insert to force, Delete to remove | `SpecialKeys\InsF`, `DelP` | Done | `Insert` opens the add dialog, `Delete` removes |
 | React to mouse gestures | `SpecialKeys\CheckMouse` | Done | Setting exposed over IPC |
 | Skip plain web pages | `SpecialKeys\SkipHtml` | Done | Setting exposed over IPC |

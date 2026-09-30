@@ -141,19 +141,48 @@
     return index < 0 ? url : url.slice(0, index);
   }
 
+  /**
+   * True when a takeover modifier is held.
+   *
+   * Accepts a single modifier or a '+'-separated group such as "Alt+Ctrl", so
+   * several bindings can be active at once, and accepts both the application's
+   * spelling ("Ctrl") and the DOM's ("Control") - only one of the two used to
+   * work. "None" and an empty value never match.
+   *
+   * The semantics are "any of these is held", because a group of force bindings
+   * means "hold Alt, or Ctrl, or Shift to force", not "hold all three".
+   */
   function modifierActive(event, key) {
-    switch (key) {
-      case 'Alt':
-        return Boolean(event.altKey);
-      case 'Control':
-        return Boolean(event.ctrlKey);
-      case 'Shift':
-        return Boolean(event.shiftKey);
-      case 'Meta':
-        return Boolean(event.metaKey);
-      default:
-        return false;
+    if (!key || key === 'None') {
+      return false;
     }
+
+    const parts = String(key).split(/[+\s,;]+/).filter(Boolean);
+
+    for (const part of parts) {
+      switch (part.toLowerCase()) {
+        case 'alt':
+        case 'option':
+          if (event.altKey) { return true; }
+          break;
+        case 'ctrl':
+        case 'control':
+          if (event.ctrlKey) { return true; }
+          break;
+        case 'shift':
+          if (event.shiftKey) { return true; }
+          break;
+        case 'meta':
+        case 'cmd':
+        case 'win':
+          if (event.metaKey) { return true; }
+          break;
+        default:
+          break;
+      }
+    }
+
+    return false;
   }
 
   function findAnchor(node) {
