@@ -42,7 +42,9 @@ public static class FtpSupport
 
         try
         {
-            using var request = CreateRequest(url, context, item, WebRequestMethods.Ftp.GetFileSize);
+            // FtpWebRequest is not disposable, unlike HttpRequestMessage: the
+            // connection is owned by the response, which is disposed below.
+            var request = CreateRequest(url, context, item, WebRequestMethods.Ftp.GetFileSize);
 
             using var response = await GetResponseAsync(request, context, cancellationToken).ConfigureAwait(false);
 
@@ -323,7 +325,8 @@ public static class FtpSupport
     {
         var url = string.IsNullOrWhiteSpace(item.FinalUrl) ? item.Url : item.FinalUrl!;
 
-        using var request = CreateRequest(url, context, item, WebRequestMethods.Ftp.DownloadFile);
+        // FtpWebRequest is not disposable; the response owns the data connection.
+        var request = CreateRequest(url, context, item, WebRequestMethods.Ftp.DownloadFile);
         request.ContentOffset = segment.Position;
 
         using var response = await GetResponseAsync(request, context, cancellationToken).ConfigureAwait(false);
