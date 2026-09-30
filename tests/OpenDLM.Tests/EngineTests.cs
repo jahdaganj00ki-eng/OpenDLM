@@ -695,10 +695,17 @@ public static class EngineTests
 
         var byUrl = new OpenDLM.Core.Services.SearchQuery
         {
-            Text = "example.com/reports",
+            Text = "report-2026.pdf",
             Fields = new HashSet<OpenDLM.Core.Models.SearchField> { OpenDLM.Core.Models.SearchField.Url }
         };
         Check.Equal(1, searcher.Find(byUrl).Count, "an address match finds the item");
+
+        var byPage = new OpenDLM.Core.Services.SearchQuery
+        {
+            Text = "example.com/reports",
+            Fields = new HashSet<OpenDLM.Core.Models.SearchField> { OpenDLM.Core.Models.SearchField.ParentPage }
+        };
+        Check.Equal(1, searcher.Find(byPage).Count, "a parent page match finds the item");
 
         var wrongField = new OpenDLM.Core.Services.SearchQuery
         {
