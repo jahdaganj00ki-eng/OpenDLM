@@ -980,6 +980,10 @@ async function handleRuntimeMessage(message, sender) {
         const reply = await sendToApp({ type: 'setSetting', key, value: settings[key] });
         pushed.push({ key, ok: reply.type !== 'error' });
       }
+
+      // The toolbar title reflects whether takeover is on, so it must be refreshed.
+      await refreshToolbarState();
+
       return { ok: true, settings, pushed };
     }
 
@@ -1072,10 +1076,56 @@ async function maybeOpenWelcome(reason) {
   }
 }
 
+/**
+ * Sets the toolbar button to one of three states, mirroring the reference:
+ * normal, "disabled" when integration is off, and "error" when the desktop app
+ * cannot be reached. The title changes with it, so the state is legible without
+ * colour.
+ */
+async function setToolbarState(state, detail) {
+  const titles = {
+    ok: 'OpenDLM - click to toggle integration',
+    off: 'OpenDLM [DISABLED] - click to enable',
+    error: 'OpenDLM [ERROR] - click for help',
+  };
+
+  try {
+    await chrome.action.setTitle({ title: titles[state] || titles.ok });
+
+    if (detail) {
+      await chrome.action.setBadgeText({ text: detail });
+      await chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
+    } else {
+      await chrome.action.setBadgeText({ text: '' });
+    }
+  } catch (error) {
+    // The action API is not available in every context; never let this break a flow.
+  }
+}
+
+/** Refreshes the toolbar state from the live settings and whether the app answers. */
+async function refreshToolbarState() {
+  const settings = await getSettings();
+
+  if (!settings.enabled) {
+    await setToolbarState('off', '');
+    return;
+  }
+
+  const reply = await sendToApp({ type: 'ping' });
+
+  if (reply && reply.type === 'pong' && reply.running) {
+    await setToolbarState('ok', '');
+  } else {
+    await setToolbarState('error', '!');
+  }
+}
+
 chrome.runtime.onInstalled.addListener((details) => {
   scheduleContextMenus(true);
   seedDefaults().catch(() => {});
   maybeOpenWelcome(details && details.reason).catch(() => {});
+  refreshToolbarState().catch(() => {});
 
   if (details && details.reason === 'update') {
     // A stale "host missing" flag would hide a genuine problem after an update.
@@ -1085,6 +1135,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 chrome.runtime.onStartup.addListener(() => {
   scheduleContextMenus(true);
+  refreshToolbarState().catch(() => {});
 });
 
 // Exposed for answers to the popup and options pages without duplicating logic.
