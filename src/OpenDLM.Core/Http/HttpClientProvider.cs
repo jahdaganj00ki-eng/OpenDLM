@@ -19,6 +19,9 @@ public sealed class HttpClientProvider : IDisposable
     private string _signature = string.Empty;
     private bool _disposed;
 
+    private static PacResolver? _pacResolver;
+    private static bool _disposedPac;
+
     public HttpClientProvider(Func<AppSettings> settingsAccessor)
     {
         _settingsAccessor = settingsAccessor;
@@ -39,16 +42,29 @@ public sealed class HttpClientProvider : IDisposable
             }
 
             _client?.Dispose();
-            PacResolver?.Dispose();
-            PacResolver = new PacResolver();
             _client = Build(settings.Connection, settings.Advanced);
             _signature = signature;
             return _client;
         }
     }
 
-    /// <summary>Evaluates PAC scripts for the automatic proxy mode. Null when never needed.</summary>
-    private PacResolver? PacResolver { get; set; }
+    /// <summary>
+    /// The process-wide PAC session. It is deliberately shared: a WinHTTP session is
+    /// a per-process resource and its script cache is worth keeping warm across
+    /// client rebuilds, which happen whenever a proxy setting changes.
+    /// </summary>
+    private static PacResolver? PacResolver
+    {
+        get
+        {
+            if (_disposedPac)
+            {
+                return null;
+            }
+
+            return _pacResolver ??= new PacResolver();
+        }
+    }
 
     private static string BuildSignature(ConnectionSettings connection) => string.Join('|',
         connection.ProxyMode,
@@ -185,9 +201,13 @@ public sealed class HttpClientProvider : IDisposable
             _disposed = true;
             _client?.Dispose();
             _client = null;
-            PacResolver?.Dispose();
-            PacResolver = null;
         }
+
+        // The PAC session is process-wide, so it is only released once the last
+        // client is gone.
+        _pacResolver?.Dispose();
+        _pacResolver = null;
+        _disposedPac = true;
     }
 }
 
