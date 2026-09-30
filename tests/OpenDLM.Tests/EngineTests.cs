@@ -562,4 +562,146 @@ public static class EngineTests
 
         await Task.CompletedTask;
     }
+
+    /// <summary>The probe must report the size of an FTP resource before downloading it.</summary>
+    public static async Task FtpProbeReportsSize(string root)
+    {
+        using var server = new TestFtpServer(2 * 1024 * 1024);
+        var settings = CreateSettings(null);
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        var probe = await manager.ProbeAsync(server.Url());
+
+        Check.True(probe.Success, "the FTP probe succeeded: " + probe.ErrorMessage);
+        Check.Equal((long)server.Payload.Length, probe.ContentLength, "the probe reported the size");
+        Check.True(probe.SupportsRanges, "the probe reports resume support");
+        Check.Equal("file.bin", probe.SuggestedFileName, "the probe derived the file name");
+    }
+
+    /// <summary>
+    /// An FTP transfer must come out byte perfect and must use exactly one
+    /// connection, whatever the global segment count says.
+    /// </summary>
+    public static async Task FtpDownloadIsBytePerfect(string root)
+    {
+        using var server = new TestFtpServer(2 * 1024 * 1024);
+
+        var settings = CreateSettings(s =>
+        {
+            // Eight connections must not leak into FTP: that is what this proves.
+            s.Connection.MaxConnectionsPerFile = 8;
+            s.Connection.RetryCount = 3;
+        });
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        var folder = NewFolder(root, "ftp");
+        var item = await manager.AddAndStartAsync(new AddDownloadRequest
+        {
+            Url = server.Url(),
+            Directory = folder,
+            FileName = "ftp-file.bin"
+        });
+
+        Check.Equal(DownloadStatus.Complete, item.Status, "download status (" + item.ErrorMessage + ")");
+        Check.BytesEqual(server.Payload, await File.ReadAllBytesAsync(item.FullPath), "content is byte perfect");
+        Check.Equal(1, item.Connections, "FTP used a single connection despite eight being configured");
+        Check.True(server.TransferCount >= 1, "the server performed at least one transfer");
+        Check.False(File.Exists(item.PartialPath), "the partial file is gone once complete");
+    }
+
+    /// <summary>A dropped FTP data connection must be resumed, not restarted from zero.</summary>
+    public static async Task FtpResumesAfterDroppedConnections(string root)
+    {
+        using var server = new TestFtpServer(4 * 1024 * 1024) { TruncateTimes = 3 };
+
+        var settings = CreateSettings(s =>
+        {
+            s.Connection.RetryCount = 6;
+            s.Connection.RetryDelaySeconds = 1;
+            s.Downloads.AutoRetryOnFailure = true;
+        });
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        var folder = NewFolder(root, "ftp-resume");
+        var item = await manager.AddAndStartAsync(new AddDownloadRequest
+        {
+            Url = server.Url(),
+            Directory = folder,
+            FileName = "resumed.bin"
+        });
+
+        Check.Equal(DownloadStatus.Complete, item.Status,
+            "download status after a dropped connection (" + item.ErrorMessage + ")");
+        Check.BytesEqual(server.Payload, await File.ReadAllBytesAsync(item.FullPath), "content after resuming");
+        Check.True(server.RestCount >= 1, "the resume used a restart marker, saw " + server.RestCount);
+    }
+
+    /// <summary>
+    /// A server that ignores restart markers would silently splice a second copy of
+    /// the file over the tail. The engine must detect that and start over instead of
+    /// handing back a corrupt file.
+    /// </summary>
+    public static async Task FtpRejectsAnIgnoredRestartMarker(string root)
+    {
+        using var server = new TestFtpServer(1024 * 1024)
+        {
+            TruncateTimes = 1,
+            IgnoreRestart = true
+        };
+
+        var settings = CreateSettings(s =>
+        {
+            s.Connection.RetryCount = 4;
+            s.Connection.RetryDelaySeconds = 1;
+            s.Downloads.AutoRetryOnFailure = true;
+        });
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        var folder = NewFolder(root, "ftp-ignore");
+        var item = await manager.AddAndStartAsync(new AddDownloadRequest
+        {
+            Url = server.Url(),
+            Directory = folder,
+            FileName = "ignored.bin"
+        });
+
+        Check.Equal(DownloadStatus.Complete, item.Status, "download status (" + item.ErrorMessage + ")");
+        Check.BytesEqual(server.Payload, await File.ReadAllBytesAsync(item.FullPath),
+            "the ignored restart marker did not corrupt the file");
+    }
+
+    /// <summary>An FTP login prompt must reach the user, exactly like an HTTP 401.</summary>
+    public static async Task FtpAuthenticationIsAnsweredFromTheUi(string root)
+    {
+        using var server = new TestFtpServer(256 * 1024)
+        {
+            RequiresAuth = true,
+            AuthPassword = "hunter2"
+        };
+
+        var settings = CreateSettings(s => s.Connection.RetryCount = 3);
+        using var manager = new DownloadManager(settings, new FileTypeRegistry(), new DownloadStore());
+
+        var prompts = 0;
+        manager.CredentialsRequired += (_, args) =>
+        {
+            prompts++;
+            args.CredentialsSupplied = true;
+            args.Username = "bob";
+            args.Password = "hunter2";
+            args.Remember = false;
+        };
+
+        var folder = NewFolder(root, "ftp-auth");
+        var item = await manager.AddAndStartAsync(new AddDownloadRequest
+        {
+            Url = server.Url(),
+            Directory = folder,
+            FileName = "protected.bin"
+        });
+
+        Check.True(prompts >= 1, "the user was asked for credentials");
+        Check.Equal(DownloadStatus.Complete, item.Status, "download status (" + item.ErrorMessage + ")");
+        Check.BytesEqual(server.Payload, await File.ReadAllBytesAsync(item.FullPath), "content after authenticating");
+    }
 }

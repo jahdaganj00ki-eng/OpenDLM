@@ -48,7 +48,14 @@ var cases = new List<(string Name, Func<Task> Body)>
     ("Site exception forces a single connection", () => EngineTests.SiteExceptionForcesASingleConnection(sandbox)),
     ("Per-type folder overrides the category folder", () => EngineTests.PerTypeFolderOverridesTheCategoryFolder(sandbox)),
     ("Item carries the queue name", () => EngineTests.ItemCarriesTheQueueName(sandbox)),
-    ("Site exceptions persist", () => EngineTests.SiteExceptionsPersist(sandbox))
+    ("Site exceptions persist", () => EngineTests.SiteExceptionsPersist(sandbox)),
+
+    // FTP, with a real passive-mode FTP server on a raw socket.
+    ("FTP probe reports size", () => EngineTests.FtpProbeReportsSize(sandbox)),
+    ("FTP download is byte perfect", () => EngineTests.FtpDownloadIsBytePerfect(sandbox)),
+    ("FTP resumes after dropped connections", () => EngineTests.FtpResumesAfterDroppedConnections(sandbox)),
+    ("FTP rejects an ignored restart marker", () => EngineTests.FtpRejectsAnIgnoredRestartMarker(sandbox)),
+    ("FTP authentication is answered from the UI", () => EngineTests.FtpAuthenticationIsAnsweredFromTheUi(sandbox))
 };
 
 var failures = new List<string>();

@@ -554,7 +554,12 @@ public sealed class SegmentedDownloader
     }
 
     /// <summary>Reads the response body into the partial file at the segment's offsets.</summary>
-    private static async Task PumpAsync(
+    /// <remarks>
+    /// Internal rather than private: the FTP path drives the same pump, so byte
+    /// accounting, the bandwidth governor and cancellation behave identically on
+    /// both transports and cannot drift apart.
+    /// </remarks>
+    internal static async Task PumpAsync(
         Stream source,
         SafeFileHandle handle,
         Segment segment,

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using OpenDLM.Core.Http;
+using OpenDLM.Core.Http.Ftp;
 using OpenDLM.Core.Models;
 using OpenDLM.Core.Util;
 
@@ -808,7 +809,12 @@ public sealed class DownloadManager : IDisposable
             item.Connections > 0 ? item.Connections : settings.Connection.MaxConnectionsPerFile,
             1, 32);
 
-        var forceSingleConnection = !probe.SupportsRanges || UsesSingleConnection(item.Url);
+        // FTP is always a single connection: restarting several streams over one
+        // control channel is something servers disagree about, and a wrong guess
+        // corrupts the file rather than slowing it down.
+        var isFtp = FtpSupport.IsFtpUrl(item.Url);
+
+        var forceSingleConnection = !probe.SupportsRanges || isFtp || UsesSingleConnection(item.Url);
 
         if (forceSingleConnection)
         {
@@ -854,7 +860,9 @@ public sealed class DownloadManager : IDisposable
 
         // ---- run -------------------------------------------------------------
         item.Status = DownloadStatus.Downloading;
-        var outcome = await _downloader.RunAsync(item, context, plan, sink, cancellationToken).ConfigureAwait(false);
+        var outcome = isFtp
+            ? await FtpSupport.RunAsync(item, context, plan, sink, cancellationToken).ConfigureAwait(false)
+            : await _downloader.RunAsync(item, context, plan, sink, cancellationToken).ConfigureAwait(false);
 
         if (outcome.Success)
         {

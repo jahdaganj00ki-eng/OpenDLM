@@ -29,7 +29,15 @@ public static class HttpProbe
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            return ProbeResult.Failed("Only http:// and https:// URLs are supported.", DownloadErrorKind.InvalidUrl);
+            if (Ftp.FtpSupport.IsFtpUrl(url))
+            {
+                return await Ftp.FtpSupport.ProbeAsync(url, context, item, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            return ProbeResult.Failed(
+                "Only http://, https:// and ftp:// addresses are supported.",
+                DownloadErrorKind.InvalidUrl);
         }
 
         // Step 1: ranged GET.
