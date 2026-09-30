@@ -105,6 +105,11 @@ public partial class OptionsWindow : Window
             SocksTypeBox.Items.Add(value);
         }
 
+        foreach (var value in Enum.GetValues<ToolbarStyle>())
+        {
+            ToolbarStyleBox.Items.Add(value);
+        }
+
         foreach (var value in Enum.GetValues<ToolbarIconSize>())
         {
             ToolbarIconSizeBox.Items.Add(value);
@@ -491,7 +496,7 @@ public partial class OptionsWindow : Window
         ui.ShowToolbar = ShowToolbarBox.IsChecked == true;
         ui.ShowStatusBar = ShowStatusBarBox.IsChecked == true;
         ui.ToolbarStyle = ReadEnum(ToolbarStyleBox, ToolbarStyle.IconsAndText);
-        SelectEnum(ToolbarIconSizeBox, _working.ToolbarIcons.Size);
+        _working.ToolbarIcons.Size = ReadEnum(ToolbarIconSizeBox, ToolbarIconSize.Classic);
         FontFamilyBox.Text = _working.UiFont.Family;
         FontSizeBox.Text = _working.UiFont.Size.ToString(CultureInfo.InvariantCulture);
 

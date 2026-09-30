@@ -593,9 +593,16 @@
                             <ColumnDefinition Width="200" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Toolbar style" VerticalAlignment="Center" />
-                        <ComboBox Grid.Column="1" Margin="0,3" x:Name="ToolbarIconSizeBox" />
+                        <TextBlock Grid.Column="0" Text="Toolbar layout" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" Margin="0,3" x:Name="ToolbarStyleBox" />
                     </Grid>
+
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="170" />
+                            <ColumnDefinition Width="200" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
                     <Grid Margin="0,6,0,0">
                         <Grid.ColumnDefinitions>
