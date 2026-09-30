@@ -24,9 +24,17 @@ function check(actual, expected, message) {
   assert.deepEqual(actual, expected, message);
 }
 
-/** Returns the text of a top-level function declaration, including its body. */
+/**
+ * Returns the text of a function declaration, including its body.
+ *
+ * Indentation is allowed: a content script is an IIFE, so its functions are nested
+ * and never start at column zero, while a service worker is a module and its
+ * top-level functions do.
+ */
 function functionSource(source, name, label) {
-  const start = source.search(new RegExp(`^(?:async\\s+)?function ${name}\\s*\\(`, 'm'));
+  const start = source.search(
+    new RegExp(`^[ \\t]*(?:async\\s+)?function ${name}\\s*\\(`, 'm'),
+  );
   assert.ok(start >= 0, `${name} was not found in ${label}; update this test`);
 
   const open = source.indexOf('{', start);
@@ -50,7 +58,7 @@ function functionSource(source, name, label) {
 
 /** Returns the text of a `const NAME = { ... };` object literal. */
 function objectSource(source, name, label) {
-  const match = new RegExp(`const ${name}\\s*=\\s*\\{([\\s\\S]*?)\\n\\};`).exec(source);
+  const match = new RegExp(`^[ \\t]*const ${name}\\s*=\\s*\\{([\\s\\S]*?)\\n\\s*\\};`, 'm').exec(source);
   assert.ok(match, `${name} was not found in ${label}; update this test`);
   return `{${match[1]}}`;
 }
