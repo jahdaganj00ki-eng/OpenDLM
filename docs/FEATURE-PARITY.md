@@ -45,7 +45,8 @@ follow-Windows themes, so this is an addition rather than a parity item.
 | Auto-start new downloads | `startImmediately` | Done | |
 | Add to queue by default | engine | Done | `Downloads.AddToQueueByDefault` |
 | Remember last save folder | `RememberLastSave` | Done | `General.RememberLastSave` |
-| Duplicate link warning | `DuplLinksA`, `RememberDuplLinksA` | Partial | Warns each time; the "never ask again for this link" memory is not implemented |
+| Duplicate link warning | `DuplLinksA` | Done | Warns with the existing entry's state, and offers to add or skip |
+| Remember the answer | `RememberDuplLinksA` | Done | The answer is stored per address, so the same link is not asked about twice. A signed link is matched by its path, because its token changes on every request |
 | FTP transfers | `FtpPasive`, `UseFtpProxy` | Done | Probe with `SIZE`, transfer with `RETR`, resume with restart markers. Always a single connection, because restarting several streams over one control channel is not something servers agree on |
 | FTP proxy protocol | `nProxyMode` | Done | The per-protocol switch and the proxy decision apply to FTP as well |
 
@@ -115,7 +116,7 @@ follow-Windows themes, so this is an addition rather than a parity item.
 |---|---|---|---|
 | Take over browser downloads | `Extensions` | Done | Manifest V3 extension plus a native messaging host |
 | Takeover file types | `Extensions` | Done | Editable, kept in step with the app over IPC |
-| Context menu entries | `menuExt` (per browser and per action) | Partial | One switch for the OpenDLM entries rather than a toggle per browser and per action |
+| Context menu entries | `menuExt` (per browser and per action) | Done | Each of the three entries is switched on and off on its own, and the extension only offers menus in a browser the user left enabled |
 | Media sniffing | `DwnlPanel` type list | Partial | Detected in the page; the reference's editable list of sniffed types plus its subtitle formats is not configurable in OpenDLM |
 | Force takeover key | `SpecialKeys\UseKeyToForce`, `AltF`, `CtrlF`, `ShiftF` | Done | Independent list: Alt, Ctrl and Shift can all force at once, stored as "Alt+Ctrl" |
 | Prevent key | `SpecialKeys\UseKeyToPrevent`, `ShiftP`, `CtrlP`, `AltP` | Done | A second, independent list, so a force set and a prevent set can differ |
@@ -150,15 +151,19 @@ follow-Windows themes, so this is an addition rather than a parity item.
 
 **Implemented and tested:** segments, resume, fallback, retry, speed limit, checksums,
 clipboard monitor, queues, site logins, per-site single-connection rules, all scheduler
-windows and the daily ceilings, protocol-aware proxy with exceptions and SOCKS,
-per-file-type folders and categories, all thirteen grid columns, three toolbar styles,
-light/dark/system themes, progress and completion dialogs, tray icon, notifications,
-the full options surface, and the browser extension with its own settings vocabulary.
+windows and the daily ceilings, protocol-aware proxy with per-protocol switches, host
+exceptions, local bypass, SOCKS4/5 and a real PAC script, FTP with resume and
+restart-marker detection, per-file-type folders and categories, all thirteen grid
+columns, three toolbar styles, light/dark/system themes, progress and completion
+dialogs, tray icon, notifications, the full options surface, duplicate-link memory,
+and the browser extension with its own tested settings vocabulary.
 
 **Deliberately not reproduced:** kernel filter driver, shell extension, COM hooks,
 site-specific video grabber, licence activation, third-party help files and
 translations.
 
-**Known gaps:** individually toggling every browser context-menu entry (OpenDLM has
-one switch for the OpenDLM entries rather than one per action and per browser), and
-remembering the user's answer to a duplicate-link prompt.
+**Known differences, all deliberate and none of them settings the user can see as
+missing:** the "Parent" grid column refers to splitting one download into several child
+downloads, a concept OpenDLM does not have; the reference ships 40+ translation files
+and OpenDLM ships English; and the reference's Insert/Delete takeover keys are replaced
+by the Insert and Delete shortcuts in the list.
