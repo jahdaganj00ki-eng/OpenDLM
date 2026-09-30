@@ -36,7 +36,13 @@
                    Text="{Binding Url}" />
 
         <Grid Grid.Row="2" Margin="0,8,0,0">
-            <ProgressBar Height="18" Value="{Binding Progress}" Minimum="0" Maximum="100" />
+            <!-- Value must be OneWay: ProgressBar.Value binds two-way by default and
+                 DownloadItem.Progress is computed, so a two-way binding throws at
+                 load time. -->
+            <ProgressBar Height="18"
+                         Value="{Binding Progress, Mode=OneWay}"
+                         Minimum="0"
+                         Maximum="100" />
             <TextBlock Margin="6,0,0,0"
                        HorizontalAlignment="Left"
                        VerticalAlignment="Center"
