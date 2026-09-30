@@ -10,6 +10,15 @@
     <AssemblyName>OpenDLM</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Description>OpenDLM - free download manager for Windows.</Description>
+
+    <!--
+      Directory.Build.props turns invariant globalization on for the whole solution,
+      which is right for the engine (it formats numbers itself and the tests assert
+      on that output) and wrong for WPF: the first time a window needs a specific
+      culture it throws "Cannot find non-neutral culture related to 'en-us'" and the
+      application dies on startup. This is the one project that opts out.
+    -->
+    <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
