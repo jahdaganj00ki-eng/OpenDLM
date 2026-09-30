@@ -128,14 +128,14 @@ public partial class AddUrlWindow : Window
     private (bool Add, bool Remember)? ShowDuplicatePrompt(
         Core.Models.DownloadItem existing, string url)
     {
-        var owner = Application.Current?.ActiveWindow is { IsLoaded: true } active ? active : this;
-
         var dialog = new DuplicatePromptWindow(
             Fmt.Ellipsis(url, 160),
             existing.StatusText,
             _settingsService.Current.General.RememberDuplicateAnswers)
         {
-            Owner = owner
+            // This window is the prompt's natural owner. A window whose owner is
+            // hidden would itself be hidden, so it is only set when visible.
+            Owner = IsVisible ? this : null
         };
 
         var result = dialog.ShowDialog();
