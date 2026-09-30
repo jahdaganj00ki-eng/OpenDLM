@@ -546,8 +546,15 @@ function selectMenus(appSettings) {
 
   const browsers = appSettings.browsers || {};
   const mine = detectBrowser();
+
+  // A browser counts as enabled unless it was explicitly switched off. The one
+  // extra case is a fork that presents itself as Chrome: if Chrome is off but that
+  // fork is explicitly on, this copy is probably the fork, so its menus are offered.
+  // The trade-off is that a plain Chrome user with Chrome off and the fork on also
+  // gets menus - which is the safer of the two ways to be wrong, because the
+  // alternative silently strips the menus from users who cannot be identified.
   const mineEnabled = browsers[mine] !== false ||
-    (mine === 'chrome' && browsers.brave !== false);
+    (mine === 'chrome' && browsers.brave === true);
 
   const wanted = appSettings.enabled !== false && mineEnabled;
   const entries = appSettings.contextMenus || {};
