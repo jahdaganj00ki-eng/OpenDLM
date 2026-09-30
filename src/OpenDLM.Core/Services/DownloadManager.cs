@@ -665,14 +665,9 @@ public sealed class DownloadManager : IDisposable
             return DuplicateDecision.Ask;
         }
 
-        // Exact match first, then a prefix so a signed URL is still recognised by
-        // its path once the user has answered for it.
-        var candidates = new[] { url };
-        var questionMark = url.IndexOf('?');
-        if (questionMark > 0)
-        {
-            candidates = new[] { url, url[..questionMark] };
-        }
+        // Exact match first, then the path form, so a signed URL is still recognised
+        // by its path once the user has answered for it.
+        var candidates = DuplicateForms(url);
 
         lock (_itemsGate)
         {
@@ -690,6 +685,25 @@ public sealed class DownloadManager : IDisposable
         }
 
         return DuplicateDecision.Ask;
+    }
+
+    /// <summary>
+    /// The forms an address is remembered under.
+    ///
+    /// A signed link carries a fresh token on every request, so remembering only the
+    /// exact address would mean the memory never matched a second time. The path is
+    /// therefore remembered alongside it, and both are looked up together.
+    /// </summary>
+    private static string[] DuplicateForms(string url)
+    {
+        var questionMark = url.IndexOf('?');
+        if (questionMark <= 0)
+        {
+            return new[] { url };
+        }
+
+        var withoutQuery = url[..questionMark];
+        return withoutQuery.Length == url.Length ? new[] { url } : new[] { url, withoutQuery };
     }
 
     /// <summary>Stores the user's answer for a duplicate address, if remembering is on.</summary>
@@ -710,18 +724,21 @@ public sealed class DownloadManager : IDisposable
             ? general.DuplicateNeverAdd
             : general.DuplicateAlwaysAdd;
 
+        var forms = DuplicateForms(url);
+
         lock (_itemsGate)
         {
-            foreach (var value in new[] { url })
+            foreach (var form in forms)
             {
-                if (!store.Contains(value, StringComparer.OrdinalIgnoreCase))
+                if (!store.Contains(form, StringComparer.OrdinalIgnoreCase))
                 {
-                    store.Add(value);
+                    store.Add(form);
                 }
             }
 
-            // An address cannot be on both lists.
-            other.RemoveAll(value => string.Equals(value, url, StringComparison.OrdinalIgnoreCase));
+            // An address can never sit on both lists.
+            other.RemoveAll(value =>
+                forms.Any(form => string.Equals(value, form, StringComparison.OrdinalIgnoreCase)));
         }
 
         _settingsService.Save();
