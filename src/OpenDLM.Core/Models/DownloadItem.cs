@@ -413,6 +413,18 @@ public sealed class DownloadItem : INotifyPropertyChanged
     [JsonIgnore]
     public string LastTryText => LastTryAt?.ToString("dd.MM.yyyy HH:mm") ?? string.Empty;
 
+    /// <summary>When the item was added, for the "date added" grid column.</summary>
+    [JsonIgnore]
+    public string DateAddedText => CreatedAt.ToString("dd.MM.yyyy HH:mm");
+
+    /// <summary>When the download finished, or an empty string while it has not.</summary>
+    [JsonIgnore]
+    public string CompletedText => CompletedAt?.ToString("dd.MM.yyyy HH:mm") ?? string.Empty;
+
+    /// <summary>Shortened referer/page address, for the "referer" grid column.</summary>
+    [JsonIgnore]
+    public string RefererText => Fmt.Ellipsis(Referer ?? PageUrl, 60);
+
     /// <summary>One-line summary used by the IPC/subscription channel and the status column of the popup.</summary>
     public string ToSummaryString()
         => $"{FileName} - {StatusText} - {Progress:0.0}% - {SpeedText}";

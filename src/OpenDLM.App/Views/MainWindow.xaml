@@ -53,6 +53,12 @@
                 <MenuItem x:Name="MenuShowToolbar" Header="_Toolbar" IsCheckable="True" Click="OnToggleToolbar" />
                 <MenuItem x:Name="MenuShowStatusBar" Header="_Status bar" IsCheckable="True" Click="OnToggleStatusBar" />
                 <Separator />
+                <MenuItem Header="_Toolbar style">
+                    <MenuItem x:Name="MenuToolbarIconsAndText" Header="Icons and _text" IsCheckable="True" Click="OnToolbarStyleSelected" Tag="IconsAndText" />
+                    <MenuItem x:Name="MenuToolbarIconsOnly" Header="_Icons only" IsCheckable="True" Click="OnToolbarStyleSelected" Tag="IconsOnly" />
+                    <MenuItem x:Name="MenuToolbarLarge" Header="_Large icons" IsCheckable="True" Click="OnToolbarStyleSelected" Tag="LargeIcons" />
+                </MenuItem>
+                <Separator />
                 <MenuItem Header="_Theme">
                     <MenuItem x:Name="MenuThemeLight" Header="_Light" IsCheckable="True" Click="OnThemeSelected" Tag="Light" />
                     <MenuItem x:Name="MenuThemeDark" Header="_Dark" IsCheckable="True" Click="OnThemeSelected" Tag="Dark" />
@@ -81,27 +87,32 @@
                 BorderThickness="0,1,0,1"
                 Padding="4,3">
             <StackPanel Orientation="Horizontal">
-                <Button Style="{StaticResource Style.ToolButton}"
+                <Button x:Name="ToolAddUrl"
+                        Style="{StaticResource Style.ToolButton}"
                         Command="{Binding AddUrlCommand}"
                         Tag="{StaticResource Icon.Add}"
                         ToolTip="Add a new download (Insert)"
                         Content="_Add URL" />
-                <Button Style="{StaticResource Style.ToolButton}"
+                <Button x:Name="ToolResume"
+                        Style="{StaticResource Style.ToolButton}"
                         Command="{Binding StartCommand}"
                         Tag="{StaticResource Icon.Start}"
                         ToolTip="Start or resume the selected download"
                         Content="_Resume" />
-                <Button Style="{StaticResource Style.ToolButton}"
+                <Button x:Name="ToolPause"
+                        Style="{StaticResource Style.ToolButton}"
                         Command="{Binding PauseCommand}"
                         Tag="{StaticResource Icon.Pause}"
                         ToolTip="Pause the selected download"
                         Content="_Pause" />
-                <Button Style="{StaticResource Style.ToolButton}"
+                <Button x:Name="ToolStop"
+                        Style="{StaticResource Style.ToolButton}"
                         Command="{Binding StopCommand}"
                         Tag="{StaticResource Icon.Stop}"
                         ToolTip="Stop the selected download"
                         Content="_Stop" />
-                <Button Style="{StaticResource Style.ToolButton}"
+                <Button x:Name="ToolRemove"
+                        Style="{StaticResource Style.ToolButton}"
                         Command="{Binding RemoveCommand}"
                         Tag="{StaticResource Icon.Remove}"
                         ToolTip="Remove the selected download from the list (Delete)"
@@ -109,22 +120,26 @@
 
                 <Border Width="1" Margin="6,3" Background="{DynamicResource Brush.Separator}" />
 
-                <Button Style="{StaticResource Style.ToolButton}"
+                <Button x:Name="ToolOptions"
+                        Style="{StaticResource Style.ToolButton}"
                         Command="{Binding OptionsCommand}"
                         Tag="{StaticResource Icon.Options}"
                         ToolTip="Open the options dialog"
                         Content="_Options" />
-                <Button Style="{StaticResource Style.ToolButton}"
+                <Button x:Name="ToolScheduler"
+                        Style="{StaticResource Style.ToolButton}"
                         Command="{Binding SchedulerCommand}"
                         Tag="{StaticResource Icon.Calendar}"
                         ToolTip="Configure the scheduler"
                         Content="Sched_uler" />
-                <Button Style="{StaticResource Style.ToolButton}"
+                <Button x:Name="ToolFolder"
+                        Style="{StaticResource Style.ToolButton}"
                         Command="{Binding OpenFolderCommand}"
                         Tag="{StaticResource Icon.OpenFolder}"
                         ToolTip="Open the destination folder of the selected download"
                         Content="_Folder" />
-                <Button Style="{StaticResource Style.ToolButton}"
+                <Button x:Name="ToolTheme"
+                        Style="{StaticResource Style.ToolButton}"
                         Command="{Binding ToggleThemeCommand}"
                         Tag="{StaticResource Icon.About}"
                         ToolTip="Switch between the light and the dark theme"
@@ -290,6 +305,11 @@
                             <GridViewColumn Header="Speed" Width="96" DisplayMemberBinding="{Binding SpeedText}" />
                             <GridViewColumn Header="Time left" Width="74" DisplayMemberBinding="{Binding TimeLeftText}" />
                             <GridViewColumn Header="Connections" Width="84" DisplayMemberBinding="{Binding ConnectionsText}" />
+                            <GridViewColumn Header="Date added" Width="116" DisplayMemberBinding="{Binding DateAddedText}" />
+                            <GridViewColumn Header="Save to" Width="220" DisplayMemberBinding="{Binding Directory}" />
+                            <GridViewColumn Header="Queue" Width="104" DisplayMemberBinding="{Binding QueueName}" />
+                            <GridViewColumn Header="Referer" Width="200" DisplayMemberBinding="{Binding RefererText}" />
+                            <GridViewColumn Header="Last try" Width="116" DisplayMemberBinding="{Binding LastTryText}" />
                             <GridViewColumn Header="Description" Width="260" DisplayMemberBinding="{Binding Description}" />
                         </GridView>
                     </ListView.View>

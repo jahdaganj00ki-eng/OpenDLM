@@ -112,6 +112,14 @@ public partial class App : Application
         _viewModel.ExitRequested += (_, _) => ExitApplication();
         _viewModel.DownloadFinished += OnDownloadFinished;
 
+        _manager.ItemFailed += (_, item) =>
+        {
+            if (_settingsService.Current.Sounds.NotifyOnError)
+            {
+                Dispatcher.BeginInvoke(() => _tray?.Notify("Download failed", item.FileName, isError: true));
+            }
+        };
+
         _mainWindow = new MainWindow(_viewModel, _settingsService);
         MainWindow = _mainWindow;
 
@@ -187,7 +195,11 @@ public partial class App : Application
 
         _scheduler = new SchedulerService(_manager, _settingsService);
         _scheduler.ActionRequired += OnScheduledAction;
+        _scheduler.DailyLimitReached += OnDailyLimitReached;
     }
+
+    private void OnDailyLimitReached(object? sender, string message)
+        => Dispatcher.BeginInvoke(() => _tray?.Notify("Daily download limit reached", message));
 
     // -------------------------------------------------------------- browser bridge
 
@@ -303,12 +315,18 @@ public partial class App : Application
             {
                 case ScheduledAction.StartQueue:
                     _ = _manager?.StartAllAsync();
-                    _tray?.Notify("OpenDLM scheduler", e.Reason);
+                    if (_settingsService?.Current.Sounds.NotifyOnQueueStart == true)
+                    {
+                        _tray?.Notify("OpenDLM scheduler", e.Reason);
+                    }
                     break;
 
                 case ScheduledAction.StopQueue:
                     _manager?.StopAll();
-                    _tray?.Notify("OpenDLM scheduler", e.Reason);
+                    if (_settingsService?.Current.Sounds.NotifyOnQueueFinish == true)
+                    {
+                        _tray?.Notify("OpenDLM scheduler", e.Reason);
+                    }
                     break;
 
                 case ScheduledAction.ExitApplication:

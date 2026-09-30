@@ -87,6 +87,41 @@
             </StackPanel>
         </GroupBox>
 
+        <GroupBox Margin="0,12,0,0" Header="Daily limits">
+            <StackPanel>
+                <CheckBox x:Name="DailyLimitBox" Content="Stop downloading once a daily ceiling is reached" />
+
+                <Grid Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="80" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Hours per day" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="DailyHoursBox" />
+                    <TextBlock Grid.Row="0" Grid.Column="2" Margin="8,0,0,0" VerticalAlignment="Center"
+                               Style="{StaticResource Style.Muted}" Text="0 disables the time ceiling" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,6,0,0" Text="Megabytes per day" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="1" Grid.Column="1" Margin="0,6,0,0" x:Name="DailyMegabytesBox" />
+                    <TextBlock Grid.Row="1" Grid.Column="2" Margin="8,6,0,0" VerticalAlignment="Center"
+                               Style="{StaticResource Style.Muted}" Text="0 disables the volume ceiling" />
+                </Grid>
+
+                <CheckBox x:Name="DailyWarnBox" Margin="0,8,0,0" Content="Warn me when a ceiling is reached" />
+
+                <TextBlock Margin="0,6,0,0"
+                           TextWrapping="Wrap"
+                           Style="{StaticResource Style.Muted}"
+                           Text="The counters reset at midnight, and time is only counted while a download is actually running." />
+            </StackPanel>
+        </GroupBox>
+
         <StackPanel Margin="0,16,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="_OK" IsDefault="True" MinWidth="88" Click="OnOk" />
             <Button Content="Cancel" IsCancel="True" MinWidth="88" Margin="8,0,0,0" />

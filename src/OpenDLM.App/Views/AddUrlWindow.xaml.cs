@@ -51,10 +51,18 @@ public partial class AddUrlWindow : Window
         }
         else
         {
-            DirectoryBox.Text = _settingsService.Current.Downloads.DefaultDownloadDirectory;
-            StartNowBox.IsChecked = _settingsService.Current.Downloads.StartDownloadsAutomatically
-                                    && !_settingsService.Current.Downloads.AddToQueueByDefault;
-            _addToQueue = _settingsService.Current.Downloads.AddToQueueByDefault;
+            var settings = _settingsService.Current;
+
+            // Remember-last-save: reuse the folder of the previous download when the
+            // user asked for that, otherwise start from the configured default.
+            DirectoryBox.Text = settings.General.RememberLastSave &&
+                                !string.IsNullOrWhiteSpace(settings.General.LastUsedDirectory)
+                ? settings.General.LastUsedDirectory!
+                : settings.Downloads.DefaultDownloadDirectory;
+
+            StartNowBox.IsChecked = settings.Downloads.StartDownloadsAutomatically
+                                    && !settings.Downloads.AddToQueueByDefault;
+            _addToQueue = settings.Downloads.AddToQueueByDefault;
         }
 
         Loaded += (_, _) =>
@@ -233,6 +241,12 @@ public partial class AddUrlWindow : Window
         if (added == 0)
         {
             return;
+        }
+
+        if (_settingsService.Current.General.RememberLastSave)
+        {
+            var used = DirectoryBox.Text.Trim();
+            _settingsService.Update(settings => settings.General.LastUsedDirectory = used);
         }
 
         ResultMessage = added == 1

@@ -6,6 +6,7 @@ using OpenDLM.Core.Models;
 using OpenDLM.Core.Services;
 using OpenDLM.Core.Util;
 
+
 namespace OpenDLM.App.Views;
 
 /// <summary>
@@ -48,6 +49,11 @@ public partial class SchedulerWindow : Window
         ExitBox.IsChecked = scheduler.ExitWhenQueueFinished;
         ShutdownBox.IsChecked = scheduler.ShutdownWhenQueueFinished || scheduler.ShutdownWhenAllComplete;
         DelayBox.Text = scheduler.FinishedActionDelaySeconds.ToString(CultureInfo.InvariantCulture);
+
+        DailyLimitBox.IsChecked = scheduler.DailyLimitEnabled;
+        DailyHoursBox.Text = scheduler.DailyLimitHours.ToString(CultureInfo.InvariantCulture);
+        DailyMegabytesBox.Text = scheduler.DailyLimitMegabytes.ToString(CultureInfo.InvariantCulture);
+        DailyWarnBox.IsChecked = scheduler.ShowLimitExceededWarning;
 
         _loading = false;
         LoadSelectedQueue();
@@ -166,6 +172,20 @@ public partial class SchedulerWindow : Window
             return;
         }
 
+        if (!double.TryParse(DailyHoursBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var dailyHours) ||
+            dailyHours < 0 || dailyHours > 24)
+        {
+            Dialogs.Warn(this, "The daily hour ceiling must be a number between 0 and 24.");
+            return;
+        }
+
+        if (!long.TryParse(DailyMegabytesBox.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var dailyMegabytes) ||
+            dailyMegabytes < 0)
+        {
+            Dialogs.Warn(this, "The daily volume ceiling must be a whole number of megabytes.");
+            return;
+        }
+
         _settingsService.Update(settings =>
         {
             settings.Scheduler.Enabled = EnabledBox.IsChecked == true;
@@ -175,6 +195,11 @@ public partial class SchedulerWindow : Window
             settings.Scheduler.ShutdownWhenQueueFinished = ShutdownBox.IsChecked == true;
             settings.Scheduler.ShutdownWhenAllComplete = ShutdownBox.IsChecked == true;
             settings.Scheduler.FinishedActionDelaySeconds = Math.Clamp(delay, 0, 3600);
+
+            settings.Scheduler.DailyLimitEnabled = DailyLimitBox.IsChecked == true;
+            settings.Scheduler.DailyLimitHours = dailyHours;
+            settings.Scheduler.DailyLimitMegabytes = dailyMegabytes;
+            settings.Scheduler.ShowLimitExceededWarning = DailyWarnBox.IsChecked == true;
         });
 
         _manager.SaveQueues(_queues);

@@ -9,7 +9,6 @@ using OpenDLM.App.ViewModels;
 using OpenDLM.Core.Models;
 using OpenDLM.Core.Services;
 using OpenDLM.Core.Util;
-
 namespace OpenDLM.App.Views;
 
 /// <summary>
@@ -127,7 +126,50 @@ public partial class MainWindow : Window
         SetDetailsPane(settings.ShowDetailsPane);
         SetToolbar(settings.ShowToolbar);
         SetStatusBar(settings.ShowStatusBar);
+        ApplyToolbarStyle(settings.ToolbarStyle);
         UpdateThemeChecks(settings.Theme);
+    }
+
+    /// <summary>Swaps the toolbar button style between labelled, compact and large.</summary>
+    private void ApplyToolbarStyle(ToolbarStyle style)
+    {
+        var resourceKey = style switch
+        {
+            ToolbarStyle.IconsOnly => "Style.ToolButtonIconOnly",
+            ToolbarStyle.LargeIcons => "Style.ToolButtonLarge",
+            _ => "Style.ToolButton"
+        };
+
+        if (TryFindResource(resourceKey) is not Style buttonStyle)
+        {
+            Log.Warn($"The toolbar style '{resourceKey}' was not found in the resources.");
+            return;
+        }
+
+        foreach (var button in new[]
+                 {
+                     ToolAddUrl, ToolResume, ToolPause, ToolStop, ToolRemove,
+                     ToolOptions, ToolScheduler, ToolFolder, ToolTheme
+                 })
+        {
+            button.Style = buttonStyle;
+        }
+
+        MenuToolbarIconsAndText.IsChecked = style == ToolbarStyle.IconsAndText;
+        MenuToolbarIconsOnly.IsChecked = style == ToolbarStyle.IconsOnly;
+        MenuToolbarLarge.IsChecked = style == ToolbarStyle.LargeIcons;
+    }
+
+    private void OnToolbarStyleSelected(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem item || item.Tag is not string tag ||
+            !Enum.TryParse<ToolbarStyle>(tag, ignoreCase: true, out var style))
+        {
+            return;
+        }
+
+        _settingsService.Update(settings => settings.Interface.ToolbarStyle = style);
+        ApplyToolbarStyle(style);
     }
 
     private void SetCategoryPane(bool visible)
@@ -333,6 +375,11 @@ public partial class MainWindow : Window
         "Speed" => nameof(DownloadItem.Speed),
         "Time left" => nameof(DownloadItem.TimeLeft),
         "Connections" => nameof(DownloadItem.Connections),
+        "Date added" => nameof(DownloadItem.CreatedAt),
+        "Save to" => nameof(DownloadItem.Directory),
+        "Queue" => nameof(DownloadItem.QueueName),
+        "Referer" => nameof(DownloadItem.Referer),
+        "Last try" => nameof(DownloadItem.LastTryAt),
         "Description" => nameof(DownloadItem.Description),
         _ => null
     };

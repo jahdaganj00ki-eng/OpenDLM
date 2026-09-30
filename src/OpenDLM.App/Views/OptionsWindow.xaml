@@ -70,6 +70,11 @@
                             <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,3" x:Name="BypassKeyBox" />
                         </Grid>
 
+                        <CheckBox x:Name="EnableForceKeyBox" Margin="0,8,0,0" Content="Honour the force takeover key" />
+                        <CheckBox x:Name="EnablePreventKeyBox" Margin="0,5,0,0" Content="Honour the let-the-browser-keep-it key" />
+                        <CheckBox x:Name="CheckMouseBox" Margin="0,5,0,0" Content="Also react to middle-click and modifier-click" />
+                        <CheckBox x:Name="SkipHtmlBox" Margin="0,5,0,0" Content="Never take over plain web page navigations" />
+
                         <TextBlock Text="Start-up" Style="{StaticResource Style.SectionHeading}" />
                         <CheckBox x:Name="StartWithWindowsBox" Content="Start OpenDLM when Windows starts" />
                         <CheckBox x:Name="StartMinimizedBox" Margin="0,5,0,0" Content="Start minimised in the notification area" />
@@ -144,6 +149,7 @@
                         <CheckBox x:Name="AutoRetryBox" Margin="0,5,0,0" Content="Retry failed downloads automatically" />
                         <CheckBox x:Name="VerifySizeBox" Margin="0,5,0,0" Content="Verify the received size against the server's" />
                         <CheckBox x:Name="ChecksumsBox" Margin="0,5,0,0" Content="Compute MD5 and SHA-1 checksums when a download finishes" />
+                        <CheckBox x:Name="RememberLastSaveBox" Margin="0,5,0,0" Content="Remember the folder of the last download as the default" />
 
                         <Grid Margin="0,8,0,0">
                             <Grid.ColumnDefinitions>
@@ -217,7 +223,8 @@
                                 <GridViewColumn Header="Type" Width="120" DisplayMemberBinding="{Binding Mask}" />
                                 <GridViewColumn Header="Take over" Width="130" DisplayMemberBinding="{Binding Action}" />
                                 <GridViewColumn Header="Category" Width="140" DisplayMemberBinding="{Binding Category}" />
-                                <GridViewColumn Header="Notes" Width="220" DisplayMemberBinding="{Binding Description}" />
+                                <GridViewColumn Header="Notes" Width="180" DisplayMemberBinding="{Binding Description}" />
+                                <GridViewColumn Header="Folder" Width="200" DisplayMemberBinding="{Binding Folder}" />
                             </GridView>
                         </ListView.View>
                     </ListView>
@@ -241,6 +248,7 @@
                         <TextBox x:Name="NewExtensionBox" Width="110" ToolTip="For example: iso" />
                         <Button Margin="6,0,0,0" Content="Add type" MinWidth="90" Click="OnAddFileType" />
                         <Button Margin="8,0,0,0" Content="Remove selected" MinWidth="120" Click="OnRemoveFileType" />
+                        <Button Margin="8,0,0,0" Content="Set folder..." MinWidth="100" Click="OnSetFileTypeFolder" />
                         <Button Margin="8,0,0,0" Content="Restore defaults" MinWidth="120" Click="OnRestoreFileTypes" />
                     </StackPanel>
                 </Grid>
@@ -343,10 +351,40 @@
 
                     <CheckBox x:Name="ProxyBypassLocalBox" Margin="0,10,0,0" Content="Bypass the proxy for local addresses" />
 
+                    <TextBlock Text="Use the proxy for" Style="{StaticResource Style.SectionHeading}" />
+                    <WrapPanel>
+                        <CheckBox x:Name="ProxyHttpBox" Margin="0,0,16,5" Content="HTTP" />
+                        <CheckBox x:Name="ProxyHttpsBox" Margin="0,0,16,5" Content="HTTPS" />
+                        <CheckBox x:Name="ProxyFtpBox" Margin="0,0,16,5" Content="FTP" />
+                    </WrapPanel>
+
+                    <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="180" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Dialect" VerticalAlignment="Center" />
+                        <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,3" x:Name="SocksTypeBox" />
+                        <CheckBox Grid.Row="1" Grid.Column="1" Margin="0,5,0,0"
+                                  x:Name="SocksDnsBox" Content="Let the SOCKS5 proxy resolve names" />
+                    </Grid>
+
+                    <TextBlock Text="Connect directly to these hosts" Style="{StaticResource Style.SectionHeading}" />
+                    <TextBox x:Name="ProxyExceptionsBox"
+                             Height="80"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             FontFamily="Consolas, Courier New"
+                             ToolTip="One host or domain per line. A leading dot includes sub-domains." />
+
                     <TextBlock Margin="0,14,0,0"
                                TextWrapping="Wrap"
                                Style="{StaticResource Style.Muted}"
-                               Text="The manual proxy applies to every request OpenDLM makes. Choosing the system setting reuses whatever Windows is configured with, including a PAC script." />
+                               Text="Choosing the system setting reuses whatever Windows is configured with, including a PAC script." />
                 </StackPanel>
             </TabItem>
 
@@ -405,6 +443,56 @@
                             </StackPanel>
                         </Grid>
                     </GroupBox>
+                </Grid>
+            </TabItem>
+
+            <!-- ================================================ Per-site rules -->
+            <TabItem Header="Sites">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0"
+                               TextWrapping="Wrap"
+                               Style="{StaticResource Style.Muted}"
+                               Text="Some servers ignore byte ranges or corrupt multi-part requests. List those hosts here and OpenDLM always fetches them over a single connection, whatever the global setting says." />
+
+                    <ListView Grid.Row="1"
+                              Margin="0,8,0,0"
+                              x:Name="SiteExceptionList"
+                              SelectionChanged="OnSiteExceptionSelected">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Host" Width="260" DisplayMemberBinding="{Binding Host}" />
+                                <GridViewColumn Header="Single connection" Width="130" DisplayMemberBinding="{Binding UseSingleConnection}" />
+                                <GridViewColumn Header="Note" Width="220" DisplayMemberBinding="{Binding Note}" />
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                    <Grid Grid.Row="2" Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Host" VerticalAlignment="Center" />
+                        <TextBox Grid.Column="1"
+                                 x:Name="SiteExceptionHostBox"
+                                 ToolTip="For example files.example.com, or .example.com to include sub-domains" />
+                    </Grid>
+
+                    <StackPanel Grid.Row="3" Margin="0,10,0,0" Orientation="Horizontal">
+                        <CheckBox x:Name="SiteExceptionSingleBox"
+                                  VerticalAlignment="Center"
+                                  Content="Always use a single connection"
+                                  IsChecked="True" />
+                        <Button Margin="16,0,0,0" Content="Add host" MinWidth="90" Click="OnAddSiteException" />
+                        <Button Margin="8,0,0,0" Content="Remove selected" MinWidth="120" Click="OnRemoveSiteException" />
+                    </StackPanel>
                 </Grid>
             </TabItem>
 
@@ -470,6 +558,15 @@
                         <ComboBox Grid.Column="1" Margin="0,3" x:Name="ThemeBox" />
                     </Grid>
 
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="170" />
+                            <ColumnDefinition Width="200" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Toolbar style" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" Margin="0,3" x:Name="ToolbarStyleBox" />
+                    </Grid>
+
                     <TextBlock Text="Panes" Style="{StaticResource Style.SectionHeading}" />
                     <CheckBox x:Name="ShowCategoryPaneBox" Content="Show the category pane" />
                     <CheckBox x:Name="ShowDetailsPaneBox" Margin="0,5,0,0" Content="Show the details pane and throughput graph" />
@@ -499,6 +596,12 @@
                         <CheckBox x:Name="SendCookiesBox" Margin="0,5,0,0" Content="Send the browser's cookies with the request" />
                         <CheckBox x:Name="BrowserIpcBox" Margin="0,5,0,0" Content="Listen for browser requests on the local pipe" />
                         <CheckBox x:Name="ProbeWithGetBox" Margin="0,5,0,0" Content="Retry the probe with a GET when HEAD is refused" />
+
+                        <TextBlock Text="Notifications" Style="{StaticResource Style.SectionHeading}" />
+                        <CheckBox x:Name="NotifyCompleteBox" Content="Tell me when a download finishes" />
+                        <CheckBox x:Name="NotifyErrorBox" Margin="0,5,0,0" Content="Tell me when a download fails" />
+                        <CheckBox x:Name="NotifyQueueStartBox" Margin="0,5,0,0" Content="Tell me when a scheduled queue window opens" />
+                        <CheckBox x:Name="NotifyQueueFinishBox" Margin="0,5,0,0" Content="Tell me when a queue has drained" />
 
                         <TextBlock Text="Where OpenDLM keeps its data" Style="{StaticResource Style.SectionHeading}" />
                         <TextBox x:Name="PathsBox" IsReadOnly="True" BorderThickness="0" Background="Transparent"

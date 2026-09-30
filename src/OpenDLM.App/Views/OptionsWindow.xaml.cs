@@ -24,6 +24,7 @@ public partial class OptionsWindow : Window
     private readonly AppSettings _working;
     private readonly ObservableCollection<FileTypeRule> _fileTypes;
     private readonly ObservableCollection<SiteLogin> _logins;
+    private readonly ObservableCollection<SiteException> _siteExceptions;
 
     private bool _loading = true;
 
@@ -37,9 +38,12 @@ public partial class OptionsWindow : Window
         _working = settingsService.Current.Clone();
         _fileTypes = new ObservableCollection<FileTypeRule>(manager.FileTypes.Rules.Select(CloneRule));
         _logins = new ObservableCollection<SiteLogin>(manager.SiteLogins.Select(CloneLogin));
+        _siteExceptions = new ObservableCollection<SiteException>(
+            manager.SiteExceptions.Select(entry => entry.Clone()));
 
         FileTypeList.ItemsSource = _fileTypes;
         LoginList.ItemsSource = _logins;
+        SiteExceptionList.ItemsSource = _siteExceptions;
 
         BuildChoiceLists();
         LoadFromSettings();
@@ -89,6 +93,16 @@ public partial class OptionsWindow : Window
         foreach (var value in Enum.GetValues<AppTheme>())
         {
             ThemeBox.Items.Add(value);
+        }
+
+        foreach (var value in Enum.GetValues<ToolbarStyle>())
+        {
+            ToolbarStyleBox.Items.Add(value);
+        }
+
+        foreach (var value in Enum.GetValues<SocksType>())
+        {
+            SocksTypeBox.Items.Add(value);
         }
 
         foreach (var modifier in new[] { "Alt", "Ctrl", "Shift", "None" })
@@ -151,6 +165,10 @@ public partial class OptionsWindow : Window
         StartWithWindowsBox.IsChecked = general.StartWithWindows;
         StartMinimizedBox.IsChecked = general.StartMinimized;
         MinimizeToTrayBox.IsChecked = general.MinimizeToTrayOnClose;
+        EnableForceKeyBox.IsChecked = general.EnableForceKey;
+        EnablePreventKeyBox.IsChecked = general.EnablePreventKey;
+        CheckMouseBox.IsChecked = general.CheckMouse;
+        SkipHtmlBox.IsChecked = general.SkipHtml;
         SelectText(TakeOverKeyBox, general.TakeOverModifier);
         SelectText(BypassKeyBox, general.BypassModifier);
 
@@ -169,6 +187,7 @@ public partial class OptionsWindow : Window
         AutoRetryBox.IsChecked = downloads.AutoRetryOnFailure;
         VerifySizeBox.IsChecked = downloads.VerifyFileSize;
         ChecksumsBox.IsChecked = downloads.ComputeChecksums;
+        RememberLastSaveBox.IsChecked = downloads.RememberLastSave;
         SelectEnum(ExistingFileBox, downloads.ExistingFileAction);
         SelectEnum(ProgressDialogBox, downloads.ProgressDialog);
         SelectEnum(PostActionBox, downloads.PostDownloadAction);
@@ -197,6 +216,13 @@ public partial class OptionsWindow : Window
         ProxyUserBox.Text = connection.ProxyUsername;
         ProxyPasswordInput.Password = CredentialProtector.Unprotect(connection.ProxyPasswordProtected) ?? string.Empty;
         ProxyBypassLocalBox.IsChecked = connection.ProxyBypassLocal;
+        ProxyHttpBox.IsChecked = connection.UseHttpProxy;
+        ProxyHttpsBox.IsChecked = connection.UseHttpsProxy;
+        ProxyFtpBox.IsChecked = connection.UseFtpProxy;
+        SocksDnsBox.IsChecked = connection.Socks5ProxyDns;
+        SelectEnum(SocksTypeBox, connection.SocksType);
+        ProxyExceptionsBox.Text = string.Join(Environment.NewLine,
+            connection.ProxyExceptions ?? new List<string>());
 
         var browser = _working.BrowserIntegration;
         BrowserEnabledBox.IsChecked = browser.Enabled;
@@ -225,6 +251,7 @@ public partial class OptionsWindow : Window
         ShowDetailsPaneBox.IsChecked = ui.ShowDetailsPane;
         ShowToolbarBox.IsChecked = ui.ShowToolbar;
         ShowStatusBarBox.IsChecked = ui.ShowStatusBar;
+        SelectEnum(ToolbarStyleBox, ui.ToolbarStyle);
         RefreshIntervalBox.Text = ui.RefreshIntervalMs.ToString(CultureInfo.InvariantCulture);
 
         var advanced = _working.Advanced;
@@ -233,6 +260,12 @@ public partial class OptionsWindow : Window
         SendCookiesBox.IsChecked = advanced.SendCookies;
         BrowserIpcBox.IsChecked = advanced.EnableBrowserIpc;
         ProbeWithGetBox.IsChecked = advanced.ProbeWithGetFallback;
+
+        var sounds = _working.Sounds;
+        NotifyCompleteBox.IsChecked = sounds.NotifyOnComplete;
+        NotifyErrorBox.IsChecked = sounds.NotifyOnError;
+        NotifyQueueStartBox.IsChecked = sounds.NotifyOnQueueStart;
+        NotifyQueueFinishBox.IsChecked = sounds.NotifyOnQueueFinish;
 
         PathsBox.Text =
             $"Settings and list: {AppPaths.RoamingRoot}{Environment.NewLine}" +
@@ -261,6 +294,7 @@ public partial class OptionsWindow : Window
 
         _settingsService.Replace(_working);
         _manager.FileTypes.ReplaceAll(_fileTypes);
+        _manager.SaveSiteExceptions(_siteExceptions);
         ApplyLoginChanges();
 
         SettingsChanged = true;
@@ -334,6 +368,10 @@ public partial class OptionsWindow : Window
         general.StartWithWindows = StartWithWindowsBox.IsChecked == true;
         general.StartMinimized = StartMinimizedBox.IsChecked == true;
         general.MinimizeToTrayOnClose = MinimizeToTrayBox.IsChecked == true;
+        general.EnableForceKey = EnableForceKeyBox.IsChecked == true;
+        general.EnablePreventKey = EnablePreventKeyBox.IsChecked == true;
+        general.CheckMouse = CheckMouseBox.IsChecked == true;
+        general.SkipHtml = SkipHtmlBox.IsChecked == true;
         general.TakeOverModifier = ReadText(TakeOverKeyBox, "Alt");
         general.BypassModifier = ReadText(BypassKeyBox, "Shift");
 
@@ -352,6 +390,7 @@ public partial class OptionsWindow : Window
         downloads.AutoRetryOnFailure = AutoRetryBox.IsChecked == true;
         downloads.VerifyFileSize = VerifySizeBox.IsChecked == true;
         downloads.ComputeChecksums = ChecksumsBox.IsChecked == true;
+        downloads.RememberLastSave = RememberLastSaveBox.IsChecked == true;
         downloads.ExistingFileAction = ReadEnum(ExistingFileBox, ExistingFileAction.Ask);
         downloads.ProgressDialog = ReadEnum(ProgressDialogBox, ProgressDialogMode.Compact);
         downloads.PostDownloadAction = ReadEnum(PostActionBox, PostDownloadAction.None);
@@ -383,6 +422,12 @@ public partial class OptionsWindow : Window
             ? null
             : CredentialProtector.Protect(proxyPassword);
         connection.ProxyBypassLocal = ProxyBypassLocalBox.IsChecked == true;
+        connection.UseHttpProxy = ProxyHttpBox.IsChecked == true;
+        connection.UseHttpsProxy = ProxyHttpsBox.IsChecked == true;
+        connection.UseFtpProxy = ProxyFtpBox.IsChecked == true;
+        connection.SocksType = ReadEnum(SocksTypeBox, SocksType.None);
+        connection.Socks5ProxyDns = SocksDnsBox.IsChecked == true;
+        connection.ProxyExceptions = SplitLines(ProxyExceptionsBox.Text);
 
         var browser = _working.BrowserIntegration;
         browser.Enabled = BrowserEnabledBox.IsChecked == true;
@@ -405,6 +450,7 @@ public partial class OptionsWindow : Window
         ui.ShowDetailsPane = ShowDetailsPaneBox.IsChecked == true;
         ui.ShowToolbar = ShowToolbarBox.IsChecked == true;
         ui.ShowStatusBar = ShowStatusBarBox.IsChecked == true;
+        ui.ToolbarStyle = ReadEnum(ToolbarStyleBox, ToolbarStyle.IconsAndText);
         ui.RefreshIntervalMs = ReadInt(RefreshIntervalBox, 500);
 
         var advanced = _working.Advanced;
@@ -413,6 +459,12 @@ public partial class OptionsWindow : Window
         advanced.SendCookies = SendCookiesBox.IsChecked == true;
         advanced.EnableBrowserIpc = BrowserIpcBox.IsChecked == true;
         advanced.ProbeWithGetFallback = ProbeWithGetBox.IsChecked == true;
+
+        var sounds = _working.Sounds;
+        sounds.NotifyOnComplete = NotifyCompleteBox.IsChecked == true;
+        sounds.NotifyOnError = NotifyErrorBox.IsChecked == true;
+        sounds.NotifyOnQueueStart = NotifyQueueStartBox.IsChecked == true;
+        sounds.NotifyOnQueueFinish = NotifyQueueFinishBox.IsChecked == true;
     }
 
     private static int ReadInt(TextBox box, int fallback)
@@ -543,8 +595,101 @@ public partial class OptionsWindow : Window
         Extension = rule.Extension,
         Action = rule.Action,
         Category = rule.Category,
-        Description = rule.Description
+        Description = rule.Description,
+        Folder = rule.Folder
     };
+
+    /// <summary>Points the selected file types at their own folder, or clears that override.</summary>
+    private void OnSetFileTypeFolder(object sender, RoutedEventArgs e)
+    {
+        var selected = FileTypeList.SelectedItems.Cast<FileTypeRule>().ToList();
+        if (selected.Count == 0)
+        {
+            Dialogs.Info(this, "Select one or more file types in the list first.");
+            return;
+        }
+
+        var current = selected[0].Folder ?? DefaultFolderBox.Text;
+        var chosen = Dialogs.PickFolder(current, "Folder for the selected file types");
+
+        if (chosen is null)
+        {
+            // Cancelling offers to clear an override, which is otherwise impossible to undo.
+            if (selected.Any(rule => rule.Folder is not null) &&
+                Dialogs.ConfirmYesNo(this, "Clear the per-type folder override for the selected entries?"))
+            {
+                foreach (var rule in selected)
+                {
+                    rule.Folder = null;
+                }
+
+                FileTypeList.Items.Refresh();
+            }
+
+            return;
+        }
+
+        foreach (var rule in selected)
+        {
+            rule.Folder = chosen;
+        }
+
+        FileTypeList.Items.Refresh();
+    }
+
+    // ---------------------------------------------------------- per-site rules
+
+    private void OnSiteExceptionSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (SiteExceptionList.SelectedItem is SiteException selected)
+        {
+            SiteExceptionHostBox.Text = selected.Host;
+            SiteExceptionSingleBox.IsChecked = selected.UseSingleConnection;
+        }
+    }
+
+    private void OnAddSiteException(object sender, RoutedEventArgs e)
+    {
+        var host = HostMatcher.Normalize(SiteExceptionHostBox.Text);
+
+        if (host.Length == 0)
+        {
+            Dialogs.Warn(this, "Enter a host, for example files.example.com or .example.com");
+            return;
+        }
+
+        if (_siteExceptions.Any(entry => string.Equals(entry.Host, host, StringComparison.OrdinalIgnoreCase)))
+        {
+            Dialogs.Info(this, $"\"{host}\" is already in the list.");
+            return;
+        }
+
+        _siteExceptions.Add(new SiteException
+        {
+            Host = host,
+            UseSingleConnection = SiteExceptionSingleBox.IsChecked == true,
+            Note = "Added by the user"
+        });
+
+        SiteExceptionHostBox.Clear();
+        SiteExceptionList.Items.Refresh();
+    }
+
+    private void OnRemoveSiteException(object sender, RoutedEventArgs e)
+    {
+        var selected = SiteExceptionList.SelectedItems.Cast<SiteException>().ToList();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var entry in selected)
+        {
+            _siteExceptions.Remove(entry);
+        }
+
+        SiteExceptionList.Items.Refresh();
+    }
 
     // ------------------------------------------------------------ site logins
 
