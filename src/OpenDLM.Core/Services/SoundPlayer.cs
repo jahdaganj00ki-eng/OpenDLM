@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using System.Runtime.InteropServices;
 using OpenDLM.Core.Models;
 using OpenDLM.Core.Util;
 
@@ -16,14 +16,17 @@ public enum SoundEvent
 /// Plays the event sounds configured in the options.
 ///
 /// The reference lets the user pick a sound file per event and press a button to
-/// hear it. This does the same with <c>System.Media.SoundPlayer</c>, which covers
-/// WAV and plays synchronously on the caller's thread, so it is used from the UI
-/// thread rather than a download worker.
+/// hear it. This does the same, but by driving <c>winmm</c> directly rather than
+/// through <c>System.Media.SoundPlayer</c>: that type lives in
+/// <c>System.Windows.Extensions</c>, which the engine cannot reference without
+/// pulling in a WPF-only assembly the engine has no use for.
+///
+/// Playback is fire-and-forget on a throwaway thread, because the engine must not
+/// block a download worker on audio.
 /// </summary>
 public sealed class SoundPlayer : IDisposable
 {
     private readonly SettingsService _settingsService;
-    private System.Media.SoundPlayer? _player;
     private bool _disposed;
 
     public SoundPlayer(SettingsService settingsService)
@@ -38,7 +41,7 @@ public sealed class SoundPlayer : IDisposable
 
         foreach (var folder in new[]
                  {
-                     Environment.GetFolderPath(Environment.SpecialFolder.Windows) + @"\Media",
+                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Media"),
                      Path.Combine(
                          Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                          "Microsoft", "Windows", "Sounds")
@@ -51,10 +54,7 @@ public sealed class SoundPlayer : IDisposable
                     continue;
                 }
 
-                foreach (var file in Directory.EnumerateFiles(folder, "*.wav").OrderBy(f => f))
-                {
-                    found.Add(file);
-                }
+                found.AddRange(Directory.EnumerateFiles(folder, "*.wav").OrderBy(f => f));
             }
             catch (Exception ex)
             {
@@ -65,12 +65,17 @@ public sealed class SoundPlayer : IDisposable
         return found;
     }
 
-    /// <summary>Plays the sound for an event, if one is configured and enabled.</summary>
+    /// <summary>Plays the sound configured for an event, if one is enabled.</summary>
     public void Play(SoundEvent which)
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         var settings = _settingsService.Current.Sounds;
 
-        if (_disposed || !settings.Enabled)
+        if (!settings.Enabled)
         {
             return;
         }
@@ -102,10 +107,7 @@ public sealed class SoundPlayer : IDisposable
         PlayFile(file);
     }
 
-    /// <summary>
-    /// Plays a sound file directly, which is what the options dialog's "play" button
-    /// uses so the user can hear the choice before saving it.
-    /// </summary>
+    /// <summary>Plays a sound file, which is what the options dialog's Play button uses.</summary>
     public void PlayFile(string path)
     {
         if (_disposed || string.IsNullOrWhiteSpace(path))
@@ -121,43 +123,36 @@ public sealed class SoundPlayer : IDisposable
                 return;
             }
 
-            Stop();
-
-            _player = new System.Media.SoundPlayer(path);
-            _player.Load();
-            _player.Play();
+            // Off the calling thread: this may be a download worker.
+            var thread = new Thread(() => PlayOnWorkerThread(path))
+            {
+                IsBackground = true,
+                Name = "opendlm-sound"
+            };
+            thread.Start();
         }
         catch (Exception ex)
         {
-            Log.Warn("Could not play " + path + ": " + ex.Message);
-            Stop();
+            Log.Warn("Could not start playing " + path + ": " + ex.Message);
         }
     }
 
-    public void Stop()
+    private static void PlayOnWorkerThread(string path)
     {
-        try
+        // PlaySound with SND_FILENAME plays asynchronously and returns, so the
+        // thread finishes immediately and the sound is owned by the OS.
+        const uint sndAsync = 0x0001;
+        const uint sndMemory = 0x0004;
+
+        if (!PlaySound(path, IntPtr.Zero, sndAsync | sndMemory))
         {
-            _player?.Stop();
-            _player?.Dispose();
-        }
-        catch
-        {
-            // Nothing useful to do if stopping fails.
-        }
-        finally
-        {
-            _player = null;
+            Log.Warn("The system refused to play " + path);
         }
     }
 
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-        _disposed = true;
-        Stop();
-    }
+    [DllImport("winmm.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PlaySound(string? pszSound, IntPtr hmod, uint fdwSound);
+
+    public void Dispose() => _disposed = true;
 }
