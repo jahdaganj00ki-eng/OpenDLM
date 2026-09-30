@@ -483,6 +483,11 @@ public sealed class IpcServer : IDisposable
             ["minSizeBytes"] = browser.MinSizeBytes,
             ["excludedExtensions"] = ToJsonArray(excluded),
             ["showStartDialog"] = settings.General.ShowStartDialog,
+            // Takeover behaviour the extension can honour.
+            ["skipHtml"] = settings.General.SkipHtml,
+            ["checkMouse"] = settings.General.CheckMouse,
+            ["enableForceKey"] = settings.General.EnableForceKey,
+            ["enablePreventKey"] = settings.General.EnablePreventKey,
             ["defaultDownloadDirectory"] = settings.Downloads.DefaultDownloadDirectory,
             ["maxConnectionsPerFile"] = settings.Connection.MaxConnectionsPerFile,
             ["appVersion"] = AppPaths.Version,
@@ -570,6 +575,22 @@ public sealed class IpcServer : IDisposable
                         break;
 
                     // ---- additional keys the app exposes --------------------------
+                    case "skipHtml":
+                        settings.General.SkipHtml = value.GetValue<bool>();
+                        break;
+
+                    case "checkMouse":
+                        settings.General.CheckMouse = value.GetValue<bool>();
+                        break;
+
+                    case "enableForceKey":
+                        settings.General.EnableForceKey = value.GetValue<bool>();
+                        break;
+
+                    case "enablePreventKey":
+                        settings.General.EnablePreventKey = value.GetValue<bool>();
+                        break;
+
                     case "takeOverBrowserDownloads":
                         browser.TakeOverBrowserDownloads = value.GetValue<bool>();
                         break;

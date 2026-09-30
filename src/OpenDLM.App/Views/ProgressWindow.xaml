@@ -1,0 +1,100 @@
+<Window x:Class="OpenDLM.App.Views.ProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:OpenDLM.App.Controls"
+        Title="Downloading"
+        Width="470"
+        Height="212"
+        MinWidth="380"
+        MinHeight="150"
+        WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="True"
+        Background="{DynamicResource Brush.Window}"
+        Foreground="{DynamicResource Brush.Text}"
+        FontSize="{DynamicResource Size.FontNormal}"
+        Closed="OnClosed">
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   x:Name="NameText"
+                   FontWeight="SemiBold"
+                   TextTrimming="CharacterEllipsis"
+                   Text="{Binding FileName}" />
+
+        <TextBlock Grid.Row="1"
+                   Margin="0,3,0,0"
+                   Style="{StaticResource Style.Muted}"
+                   TextTrimming="CharacterEllipsis"
+                   Text="{Binding Url}" />
+
+        <Grid Grid.Row="2" Margin="0,8,0,0">
+            <ProgressBar Height="18" Value="{Binding Progress}" Minimum="0" Maximum="100" />
+            <TextBlock Margin="6,0,0,0"
+                       HorizontalAlignment="Left"
+                       VerticalAlignment="Center"
+                       FontSize="11"
+                       Foreground="{DynamicResource Brush.ProgressText}">
+                <Run Text="{Binding StatusText, Mode=OneWay}" />
+                <Run Text=" - " />
+                <Run Text="{Binding Progress, StringFormat={}{0:0.0}, Mode=OneWay}" />
+                <Run Text=" %" />
+            </TextBlock>
+        </Grid>
+
+        <!-- Full view only: the throughput graph and the per-item statistics. -->
+        <Grid Grid.Row="3" x:Name="DetailsArea" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="200" />
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="96" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Transferred" Style="{StaticResource Style.Muted}" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DownloadedWithTotalText}" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Speed" Style="{StaticResource Style.Muted}" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SpeedText}" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Time left" Style="{StaticResource Style.Muted}" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding TimeLeftText}" />
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Connections" Style="{StaticResource Style.Muted}" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ConnectionsText}" />
+            </Grid>
+
+            <Border Grid.Column="1"
+                    Margin="8,0,0,0"
+                    Background="{DynamicResource Brush.Panel}"
+                    BorderBrush="{DynamicResource Brush.Border}"
+                    BorderThickness="1">
+                <controls:SpeedGraph x:Name="Graph" />
+            </Border>
+        </Grid>
+
+        <StackPanel Grid.Row="4" Margin="0,10,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="PauseButton" Content="Pause" MinWidth="88" Click="OnPauseOrResume" />
+            <Button Content="Stop" MinWidth="88" Margin="8,0,0,0" Click="OnStop" />
+            <Button Content="Folder" MinWidth="88" Margin="8,0,0,0" Click="OnOpenFolder" />
+            <Button x:Name="ViewButton" Content="Compact view" MinWidth="118" Margin="8,0,0,0" Click="OnToggleView" />
+        </StackPanel>
+    </Grid>
+</Window>

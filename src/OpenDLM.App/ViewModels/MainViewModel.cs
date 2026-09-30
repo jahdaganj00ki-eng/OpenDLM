@@ -26,6 +26,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly SettingsService _settingsService;
     private readonly DispatcherTimer _statusTimer;
 
+    /// <summary>One progress window per running download, keyed by item id.</summary>
+    private readonly Dictionary<Guid, Views.ProgressWindow> _progressWindows = new();
+
+    /// <summary>Guards against a queue of completions piling up dialogs.</summary>
+    private bool _completeDialogOpen;
+
     private DownloadItem? _selectedItem;
     private CategoryNode? _selectedCategory;
     private string _searchText = string.Empty;
@@ -49,6 +55,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _manager.ItemRemoved += OnItemRemoved;
         _manager.ItemStatusChanged += OnItemStatusChanged;
         _manager.ItemCompleted += OnItemCompleted;
+        _manager.ItemStarted += OnItemStarted;
         _manager.ItemFailed += OnItemFailed;
         _manager.Message += OnManagerMessage;
         _manager.CredentialsRequired += OnCredentialsRequired;
@@ -587,9 +594,93 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void OnItemCompleted(object? sender, DownloadItem item) => OnDispatcher(() =>
     {
+        CloseProgressWindow(item);
         RefreshCounts();
         DownloadFinished?.Invoke(this, item);
+        ShowCompleteDialogIfEnabled(item);
     });
+
+    /// <summary>Opens a progress window for a download the engine just started.</summary>
+    private void OnItemStarted(object? sender, DownloadItem item) => OnDispatcher(() =>
+    {
+        if (_settingsService.Current.Downloads.ProgressDialog == ProgressDialogMode.Hidden)
+        {
+            return;
+        }
+
+        ShowProgressWindow(item);
+    });
+
+    private void ShowProgressWindow(DownloadItem item)
+    {
+        if (_progressWindows.ContainsKey(item.Id))
+        {
+            return;
+        }
+
+        try
+        {
+            var window = new Views.ProgressWindow(item, _manager, _settingsService);
+            window.Closed += (_, _) => _progressWindows.Remove(item.Id);
+
+            _progressWindows[item.Id] = window;
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Could not open the progress window for '{item.FileName}'.", ex);
+        }
+    }
+
+    private void CloseProgressWindow(DownloadItem item)
+    {
+        if (!_progressWindows.Remove(item.Id, out var window))
+        {
+            return;
+        }
+
+        try
+        {
+            window.Close();
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("Could not close a progress window: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Shows the completion dialog, at most one at a time so a queue of finished
+    /// downloads does not stack a wall of dialogs. The owner is only attached when
+    /// the main window is actually visible, because an owned window whose owner is
+    /// hidden would stay hidden itself.
+    /// </summary>
+    private void ShowCompleteDialogIfEnabled(DownloadItem item)
+    {
+        if (!_settingsService.Current.General.ShowCompleteDialog || _completeDialogOpen)
+        {
+            return;
+        }
+
+        try
+        {
+            var owner = Application.Current?.MainWindow;
+
+            var window = new Views.DownloadCompleteWindow(item);
+            if (owner is { IsVisible: true })
+            {
+                window.Owner = owner;
+            }
+
+            _completeDialogOpen = true;
+            window.Closed += (_, _) => _completeDialogOpen = false;
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Could not open the download complete dialog for '{item.FileName}'.", ex);
+        }
+    }
 
     private void OnItemFailed(object? sender, DownloadItem item) => OnDispatcher(() =>
     {
@@ -703,8 +794,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _manager.ItemRemoved -= OnItemRemoved;
         _manager.ItemStatusChanged -= OnItemStatusChanged;
         _manager.ItemCompleted -= OnItemCompleted;
+        _manager.ItemStarted -= OnItemStarted;
         _manager.ItemFailed -= OnItemFailed;
         _manager.Message -= OnManagerMessage;
         _manager.CredentialsRequired -= OnCredentialsRequired;
+
+        foreach (var window in _progressWindows.Values.ToList())
+        {
+            try
+            {
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Could not close a progress window during shutdown: " + ex.Message);
+            }
+        }
+
+        _progressWindows.Clear();
     }
 }

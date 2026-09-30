@@ -1,0 +1,79 @@
+<Window x:Class="OpenDLM.App.Views.DownloadCompleteWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Download complete"
+        Width="470"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource Brush.Window}"
+        Foreground="{DynamicResource Brush.Text}"
+        FontSize="{DynamicResource Size.FontNormal}">
+
+    <StackPanel Margin="16">
+
+        <StackPanel Orientation="Horizontal">
+            <Path Width="28" Height="28"
+                  VerticalAlignment="Center"
+                  Fill="{DynamicResource Brush.Success}"
+                  Data="{StaticResource Icon.Start}" />
+            <TextBlock Margin="10,0,0,0"
+                       VerticalAlignment="Center"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Text="Download complete" />
+        </StackPanel>
+
+        <TextBlock x:Name="NameText"
+                   Margin="0,14,0,0"
+                   FontWeight="SemiBold"
+                   TextWrapping="Wrap" />
+
+        <TextBlock x:Name="PathText"
+                   Margin="0,3,0,0"
+                   TextWrapping="Wrap"
+                   Style="{StaticResource Style.Muted}" />
+
+        <Grid Margin="0,14,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Size" Style="{StaticResource Style.Muted}" />
+            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="SizeText" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Taken" Style="{StaticResource Style.Muted}" />
+            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="ElapsedText" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Average speed" Style="{StaticResource Style.Muted}" />
+            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="AverageText" />
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="MD5" Style="{StaticResource Style.Muted}" />
+            <TextBox Grid.Row="3" Grid.Column="1"
+                     x:Name="ChecksumText"
+                     IsReadOnly="True"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     FontFamily="Consolas, Courier New"
+                     FontSize="11" />
+        </Grid>
+
+        <CheckBox x:Name="OpenWhenClosedBox"
+                  Margin="0,14,0,0"
+                  Content="Open the file when I close this dialog" />
+
+        <StackPanel Margin="0,16,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Open file" MinWidth="96" Click="OnOpenFile" />
+            <Button Content="Open folder" MinWidth="96" Margin="8,0,0,0" Click="OnOpenFolder" />
+            <Button Content="_Close" IsDefault="True" IsCancel="True" MinWidth="88" Margin="8,0,0,0" Click="OnClose" />
+        </StackPanel>
+    </StackPanel>
+</Window>
